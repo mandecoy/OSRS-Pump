@@ -2,9 +2,23 @@
 
 **Free, open-source, local-first Grand Exchange market intelligence for Old School RuneScape.**
 
-> Status: v0.1.0 **web app / development starter**. This is not yet an Android APK. Manual market analysis and tracking work when a local Node.js server is running and the upstream Wiki API is reachable. Background Android notifications, compiled APKs, and order-book analytics are not implemented.
+> Status: **Android v0.2.0-beta.1 is available** as a native WebView APK, plus the original Node.js web version. Background Android notifications and order-book analytics are not implemented. Beta APKs are debug-signed and may require reinstalling for future updates.
 
 OSRS Pump is an independent community project. Not affiliated with or endorsed by Jagex or the OSRS Wiki. Old School RuneScape and RuneScape are trademarks of their respective owners.
+
+## Android APK (Beta)
+
+**[Download OSRS Pump v0.2.0-beta.1 APK](https://github.com/mandecoy/OSRS-Pump/releases/download/v0.2.0-beta.1/OSRS-Pump-v0.2.0-beta.1.apk)** — or browse the [release page](https://github.com/mandecoy/OSRS-Pump/releases/tag/v0.2.0-beta.1).
+
+This APK runs the local app UI inside an Android WebView. Native Java code fetches public Wiki prices using an identifiable User-Agent with short-lived caching; it does **not** require running Node.js on the phone. Portfolio, trade journal, watchlists and alert rules remain stored on your device. Export a JSON backup before uninstalling or upgrading beta builds.
+
+On Android, open the downloaded APK and approve **Install unknown apps** for the app used to open it when prompted. Only install files from this official repository release. This early APK has passed the GitHub build and JavaScript unit tests, but has **not** yet been confirmed on a physical device. The beta is debug-signed, meaning subsequent beta builds may not install over it without uninstalling first.
+
+The APK currently evaluates price alerts **only while open**; it does not provide background notifications or automation of in-game trades.
+
+### Building another APK
+
+The [Android APK GitHub Actions workflow](.github/workflows/android-apk.yml) packages the web assets, verifies the Node.js tests, compiles the Android app with Gradle and uploads the compiled APK as a build artifact. It creates the initial tagged beta GitHub release once. To build newer versions, increment the app version, package name/versionCode as needed and create a new release tag and asset. For stable upgradable releases, use a securely stored permanent release-signing key (never commit it).
 
 ## Available now
 
@@ -95,16 +109,16 @@ git push -u origin main
 
 Create an empty remote repository first, and run commands from this folder. If you initialize the remote with a README, use an ordinary pull/merge workflow instead of forcibly overwriting it.
 
-## Android roadmap (not in v0.1)
+## Android roadmap
 
 The development server is **not** an Android APK. Production priorities:
 
-1. Native Android wrapper (Capacitor or Kotlin/Compose) using a compliant identifiable User-Agent for market API requests; test on Android devices.
+1. Test the native Android WebView beta on actual devices; address WebView bugs and make navigation/file import/export more robust.
 2. On-device SQLite history, proper watchlist/portfolio database and data migrations. No external backend required for personal state.
 3. WorkManager-based scheduled checks and local Android notifications, honoring background execution and minimum periodic intervals. Exact-to-the-minute notifications cannot be guaranteed without a persistent external service.
 4. Daily stored public market snapshots to allow locally calculated trends, historical screening, backtesting and volatility analytics without a paid service.
 5. Accurate recipe definitions based on sourced public wiki methods, with requirements, buy limits, yield, processing speed and profit/hour.
-6. GitHub Actions Android builds and signed release distribution. Never commit signing keys or private credentials.
+6. Move from the existing GitHub Actions debug-signed APK build to stable release signing. Never commit signing keys or private credentials.
 
 ## License
 
