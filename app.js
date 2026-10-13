@@ -1,12 +1,13 @@
 import {gp,compact,pct,flip,geTax,mapMarket,filterMarket,analyzeHistory,journalMetrics,highAlchProfit,volumeOf} from './logic.js';
+import * as V03 from './v03.js';
 const $=selector=>document.querySelector(selector);
-const names={dashboard:'Market Overview',flips:'Advanced Flip Finder',intel:'Item Intelligence',portfolio:'Trade Portfolio',watchlist:'Watchlist & Alerts',money:'Money-Making Methods',settings:'Settings & Sources'};
+const names={dashboard:'Market Overview',markets:'Explore Markets',flips:'Advanced Flip Finder',intel:'Item Intelligence',portfolio:'Trade Portfolio',watchlist:'Watchlist & Alerts',money:'Money-Making Methods',settings:'Settings & Sources'};
 const KEY='osrs-pump-v1';
 const makeId=()=>globalThis.crypto?.randomUUID?.()||`local-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-const defaults={page:'dashboard',watchlist:[],alerts:[],trades:[],selected:4151,historyStep:'1h',filter:{sort:'score',profitable:true,minScore:50},process:{input:1000,output:1500,inputQty:1,outputQty:1,actionsPerHour:300}};
+const defaults={page:'dashboard',watchlist:[],alerts:[],trades:[],selected:4151,historyStep:'1h',filter:{sort:'score',profitable:true,minScore:50},v3Filter:{...V03.DEFAULT_FILTER},v3Category:null,v3Limit:40,process:{input:1000,output:1500,inputQty:1,outputQty:1,actionsPerHour:300}};
 function loadLocal(){try{const x=JSON.parse(localStorage.getItem(KEY)||'{}');return {...defaults,...x,filter:{...defaults.filter,...x.filter}};}catch{return {...defaults};}}
 const user=loadLocal();
-const state={mapping:[],latest:{},h:{},five:{},market:[],byId:{},history:[],historyId:null,historyStep:null,busy:false,error:null,loadedAt:0};
+const state={mapping:[],latest:{},h:{},five:{},day:{},market:[],byId:{},history:[],historyId:null,historyStep:null,busy:false,error:null,loadedAt:0};
 const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const metric=(label,value,foot='',cls='')=>`<div class="card"><div class="stat-label">${esc(label)}</div><div class="stat-number ${cls}">${esc(value)}</div><div class="stat-foot">${esc(foot)}</div></div>`;
 const head=(eyebrow,title,description,action='')=>`<div class="heading"><div><div class="eyebrow">${esc(eyebrow)}</div><h2>${esc(title)}</h2><p>${esc(description)}</p></div>${action}</div>`;
@@ -14,18 +15,19 @@ const notice=s=>`<div class="info-bar">${s}</div>`;
 const empty=(t,d)=>`<div class="emptystate"><strong>${t}</strong>${d}</div>`;
 const field=(label,name,value='',placeholder='',type='number')=>`<div class="field"><label for="f-${esc(name)}">${esc(label)}</label><input id="f-${esc(name)}" name="${esc(name)}" type="${type}" value="${esc(value)}" placeholder="${esc(placeholder)}" ${type==='number'?'min="0"':''}></div>`;
 const titleLink=(id)=>`<a target="_blank" rel="noopener" href="https://prices.runescape.wiki/osrs/item/${id}">Wiki item prices ↗</a>`;
-function save(){localStorage.setItem(KEY,JSON.stringify({page:user.page,watchlist:user.watchlist,alerts:user.alerts,trades:user.trades,selected:user.selected,historyStep:user.historyStep,filter:user.filter,process:user.process}));}
+function save(){localStorage.setItem(KEY,JSON.stringify({page:user.page,watchlist:user.watchlist,alerts:user.alerts,trades:user.trades,selected:user.selected,historyStep:user.historyStep,filter:user.filter,v3Filter:user.v3Filter,v3Category:user.v3Category,v3Limit:user.v3Limit,process:user.process}));}
 let toastTimer;
 function toast(s){const el=$('#toast');el.textContent=s;el.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('show'),4000);}
 function item(id){return state.byId[Number(id)];}
 function lookup(id){return state.mapping.find(x=>Number(x.id)===Number(id));}
 function nav(page){if(!names[page])return;user.page=page;save();for(const el of document.querySelectorAll('.page'))el.hidden=el.id!==page+'Page';for(const b of document.querySelectorAll('[data-page]'))b.classList.toggle('active',b.dataset.page===page);$('#pageTitle').textContent=names[page];window.scrollTo({top:0,behavior:'auto'});renderPage();}
-function renderPage(){switch(user.page){case 'dashboard':return renderDashboard();case 'flips':return renderFlips();case 'intel':return renderIntel();case 'portfolio':return renderPortfolio();case 'watchlist':return renderWatchlist();case 'money':return renderMoney();case 'settings':return renderSettings();}}
+function v3ctx(){return {rows:state.market,user,nav,save,toast,renderPage};}
+function renderPage(){switch(user.page){case 'dashboard':$('#dashboardPage').innerHTML=V03.home(v3ctx());return;case 'markets':$('#marketsPage').innerHTML=V03.markets(v3ctx());return;case 'flips':$('#flipsPage').innerHTML=V03.flips(v3ctx());return;case 'intel':return renderIntel();case 'portfolio':return renderPortfolio();case 'watchlist':return renderWatchlist();case 'money':return renderMoney();case 'settings':return renderSettings();}}
 function status(){const date=state.loadedAt?new Date(state.loadedAt).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):'Not synced';$('#lastSync').textContent=state.busy?'Syncing Wiki data…':date;$('#refresh').disabled=state.busy;}
 async function fetchJson(path){const res=await fetch('/api/'+path,{cache:'no-store'});const data=await res.json().catch(()=>({error:'Non-JSON response'}));if(!res.ok)throw new Error(data.detail||data.error||`HTTP ${res.status}`);return data;}
 async function loadMarket(){if(state.busy)return;state.busy=true;state.error=null;status();renderPage();try{
- const [mapping,latest,h,five]=await Promise.all([fetchJson('mapping'),fetchJson('latest'),fetchJson('1h'),fetchJson('5m')]);
- state.mapping=mapping;state.latest=latest;state.h=h;state.five=five;state.market=mapMarket(mapping,latest,h,five);
+ const [mapping,latest,h,five,day]=await Promise.all([fetchJson('mapping'),fetchJson('latest'),fetchJson('1h'),fetchJson('5m'),fetchJson('24h').catch(()=>({data:{}}))]);
+ state.mapping=mapping;state.latest=latest;state.h=h;state.five=five;state.day=day;state.market=V03.decorate(mapMarket(mapping,latest,h,five),h,five,day);
  state.byId=Object.fromEntries(state.market.map(x=>[x.id,x]));state.loadedAt=Date.now();evaluateAlerts();
  }catch(e){state.error=e.message;toast('Market feed error: '+e.message);}finally{state.busy=false;status();renderPage();}}
 function stamp(age){if(!Number.isFinite(age))return 'Unknown';if(age<60)return Math.round(age)+'m ago';if(age<1440)return Math.round(age/60)+'h ago';return Math.round(age/1440)+'d ago';}
@@ -99,7 +101,7 @@ document.addEventListener('click',e=>{const node=e.target.closest('[data-page],[
  if(node.dataset.preset){const type=node.dataset.preset;user.filter={sort:'score',profitable:true,...(type==='safe'?{minVolume:1000,maxAge:30,minScore:75}:type==='budget'?{maxPrice:100000,minVolume:100,minScore:50}:{minRoi:3,minVolume:100,maxAge:180})};save();renderFlips();return;}
 });
 $('#refresh').addEventListener('click',loadMarket);
-nav(names[user.page]?user.page:'dashboard');loadMarket();
+V03.init(v3ctx());nav(names[user.page]?user.page:'dashboard');loadMarket();
 setInterval(()=>{if(!document.hidden)loadMarket();},120_000);
 
 if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});

@@ -5,6 +5,8 @@ on:
     paths:
       - 'android/**'
       - 'app.js'
+      - 'v03.js'
+      - 'v03.css'
       - 'logic.js'
       - 'styles.css'
       - 'index.html'
@@ -20,7 +22,7 @@ jobs:
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
-      - name: Verify JavaScript calculations
+      - name: Verify JavaScript and market-screen calculations
         run: |
           npm test
           npm run check
@@ -43,7 +45,7 @@ jobs:
         shell: bash
         run: |
           mkdir -p android/app/src/main/assets/web/icons
-          cp index.html app.js logic.js styles.css manifest.webmanifest android/app/src/main/assets/web/
+          cp index.html app.js v03.js logic.js styles.css v03.css manifest.webmanifest android/app/src/main/assets/web/
           cp icons/pump.svg android/app/src/main/assets/web/icons/
           python3 - <<'PY'
           from pathlib import Path
@@ -63,21 +65,21 @@ jobs:
       - name: Verify APK exists
         run: |
           test -s android/app/build/outputs/apk/debug/app-debug.apk
-          cp android/app/build/outputs/apk/debug/app-debug.apk OSRS-Pump-v0.2.0-beta.1.apk
-          sha256sum OSRS-Pump-v0.2.0-beta.1.apk
+          cp android/app/build/outputs/apk/debug/app-debug.apk OSRS-Pump-v0.3.0-beta.1.apk
+          sha256sum OSRS-Pump-v0.3.0-beta.1.apk
       - uses: actions/upload-artifact@v4
         with:
           name: OSRS-Pump-Android-beta-APK
-          path: OSRS-Pump-v0.2.0-beta.1.apk
+          path: OSRS-Pump-v0.3.0-beta.1.apk
           retention-days: 30
       - name: Publish downloadable GitHub beta release
         if: github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if ! gh release view v0.2.0-beta.1 >/dev/null 2>&1; then
-            gh release create v0.2.0-beta.1 OSRS-Pump-v0.2.0-beta.1.apk \
+          if ! gh release view v0.3.0-beta.1 >/dev/null 2>&1; then
+            gh release create v0.3.0-beta.1 OSRS-Pump-v0.3.0-beta.1.apk \
               --prerelease \
-              --title "OSRS Pump Android v0.2.0 beta 1" \
-              --notes "First Android beta. Includes native same-origin OSRS Wiki API proxy, local trade journal, watchlists, flipping analysis and money-making calculators. Alerts evaluate only while the app is open. Debug-signed early-access build: future updates may require reinstalling; export your trades first."
+              --title "OSRS Pump Android v0.3.0 beta 1" \
+              --notes "Redesigned Android beta. Includes native same-origin OSRS Wiki API proxy, local trade journal, watchlists, flipping analysis and money-making calculators. Alerts evaluate only while the app is open. Debug-signed early-access build: future updates may require reinstalling; export your trades first."
           fi

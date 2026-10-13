@@ -114,8 +114,10 @@ public final class MainActivity extends Activity {
         String mime;
         switch (name) {
             case "index.html": mime = "text/html"; break;
+            case "v03.js":
             case "app.js":
             case "logic.js": mime = "text/javascript"; break;
+            case "v03.css":
             case "styles.css": mime = "text/css"; break;
             case "icons/pump.svg": mime = "image/svg+xml"; break;
             case "manifest.webmanifest": mime = "application/manifest+json"; break;
