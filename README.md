@@ -2,17 +2,17 @@
 
 **Free, open-source, local-first Grand Exchange market intelligence for Old School RuneScape.**
 
-> Status: **Android v0.2.0-beta.1 is available** as a native WebView APK, plus the original Node.js web version. Background Android notifications and order-book analytics are not implemented. Beta APKs are debug-signed and may require reinstalling for future updates.
+> Status: **Android v0.3.0-beta.1 is available**, featuring a themed mobile market dashboard, Markets discovery categories and advanced filter drawer. Background Android notifications and order-book analytics are not implemented. Beta APKs are debug-signed and may require reinstalling for future updates.
 
 OSRS Pump is an independent community project. Not affiliated with or endorsed by Jagex or the OSRS Wiki. Old School RuneScape and RuneScape are trademarks of their respective owners.
 
 ## v0.3 redesign blueprint (planning documents)
 
-The [v0.3 product blueprint](docs/v0.3/README.md) includes all four requested developer specifications: [screen-by-screen OSRS redesign](docs/v0.3/01-SCREENS.md), [prioritized feature backlog](docs/v0.3/02-BACKLOG.md), [UI/component architecture](docs/v0.3/03-COMPONENTS.md) and [advanced market filters/formulas](docs/v0.3/04-FILTERS-AND-FORMULAS.md). **These are development plans, not implemented features of the current Android beta.**
+The [v0.3 product blueprint](docs/v0.3/README.md) includes all four requested developer specifications: [screen-by-screen OSRS redesign](docs/v0.3/01-SCREENS.md), [prioritized feature backlog](docs/v0.3/02-BACKLOG.md), [UI/component architecture](docs/v0.3/03-COMPONENTS.md) and [advanced market filters/formulas](docs/v0.3/04-FILTERS-AND-FORMULAS.md). **The v0.3 beta implements its theme, Markets discovery categories, item cards and advanced filtering; more advanced analytics, specialty calculators and background notifications remain planned.**
 
 ## Android APK (Beta)
 
-**[Download OSRS Pump v0.2.0-beta.1 APK](https://github.com/mandecoy/OSRS-Pump/releases/download/v0.2.0-beta.1/OSRS-Pump-v0.2.0-beta.1.apk)** — or browse the [release page](https://github.com/mandecoy/OSRS-Pump/releases/tag/v0.2.0-beta.1).
+**[Download OSRS Pump v0.3.0-beta.1 APK](https://github.com/mandecoy/OSRS-Pump/releases/download/v0.3.0-beta.1/OSRS-Pump-v0.3.0-beta.1.apk)** — or browse the [release page](https://github.com/mandecoy/OSRS-Pump/releases/tag/v0.3.0-beta.1).
 
 This APK runs the local app UI inside an Android WebView. Native Java code fetches public Wiki prices using an identifiable User-Agent with short-lived caching; it does **not** require running Node.js on the phone. Portfolio, trade journal, watchlists and alert rules remain stored on your device. Export a JSON backup before uninstalling or upgrading beta builds.
 
@@ -23,6 +23,24 @@ The APK currently evaluates price alerts **only while open**; it does not provid
 ### Building another APK
 
 The [Android APK GitHub Actions workflow](.github/workflows/android-apk.yml) packages the web assets, verifies the Node.js tests, compiles the Android app with Gradle and uploads the compiled APK as a build artifact. It creates the initial tagged beta GitHub release once. To build newer versions, increment the app version, package name/versionCode as needed and create a new release tag and asset. For stable upgradable releases, use a securely stored permanent release-signing key (never commit it).
+
+### What's new in v0.3.0-beta.1
+
+- Original OSRS-inspired dark stone and bronze/gold mobile styling.
+- Redesigned Home with market summary cards and actual Wiki price-feed observations.
+- Markets tab with 23 item-discovery views grouped by Trending, Flipping, Volume, Money Making, and Item Types.
+- Mobile-friendly item cards showing icons, observed low/high, net profit after tax, 1h volume, freshness and estimated ROI.
+- Advanced filter drawer: price min/max, net profit, ROI, budget, buy limit, 5m/1h/24h volume, freshness and membership.
+- Presets for liquid flips, under-100K flips, higher margin, ROI and big-ticket items.
+- Uses the public OSRS Wiki 24h aggregate feed to compare recent prices with the daily average; **not** a true end-to-end 24h percentage price change.
+- Existing local trades and watchlist kept in the same local-storage namespace. For safety, **export your JSON backup before removing any old beta**.
+- New feature calculations are covered by JavaScript tests; the Android APK passed GitHub Actions build checks. It has not yet been tested on your specific phone.
+
+### Updating from previous debug beta
+
+Android debug signing may differ between GitHub CI runs. If Android says the new app cannot be installed as an update, **first open the old OSRS Pump → Settings → Export JSON**, save your backup outside the app, then uninstall the old beta, install the new APK and import that JSON. Uninstalling without a backup clears local data.
+
+See [v0.3 release notes](docs/releases/v0.3.0-beta.1.md). Background push notifications, full historical ATH/ATL, Death's Coffer sourcing, and a curated recipe database are **not yet implemented**.
 
 ## Available now
 
