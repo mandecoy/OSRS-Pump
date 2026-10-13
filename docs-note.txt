@@ -1,0 +1,4 @@
+OSRS PUMP v0.1 STARTER
+This archive contains a local web app, source code, logic tests, README, MIT LICENSE, and GitHub Actions.
+It is NOT an APK. To run: cd OSRS-Pump && npm start, then http://localhost:8765
+GitHub: https://github.com/new ; repository name OSRS-Pump ; owner mandecoy.

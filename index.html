@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#101b22"><meta name="description" content="OSRS Pump: free local-first GE analysis, flipping and money making."><title>OSRS Pump — Grand Exchange Intel</title><link rel="stylesheet" href="./styles.css"><link rel="icon" href="./icons/pump.svg" type="image/svg+xml"><link rel="manifest" href="./manifest.webmanifest"></head>
+<body>
+<div class="shell">
+<aside class="sidebar">
+ <div class="branding"><img class="brandicon" src="./icons/pump.svg" alt=""><div><h1>OSRS <span>PUMP</span></h1><small>GRAND EXCHANGE INTELLIGENCE</small></div></div>
+ <div class="divider"></div>
+ <nav id="sidebarNav" class="nav" aria-label="Main sections"><button data-page="dashboard" class="active"><span>◈</span> Overview</button><button data-page="flips"><span>↗</span> Flip Finder</button><button data-page="intel"><span>◉</span> Item Intelligence</button><button data-page="portfolio"><span>▤</span> Portfolio</button><button data-page="watchlist"><span>☆</span> Watchlist & Alerts</button><button data-page="money"><span>◇</span> Money Making</button><button data-page="settings"><span>⚙</span> Settings</button></nav>
+ <div class="sidebar-foot"><div class="mini-tag">FREE • PUBLIC DATA • LOCAL FIRST</div><p>Powered by OSRS Wiki market feeds. Not affiliated with Jagex.</p></div>
+</aside>
+<main class="main">
+ <header class="topbar"><div class="crumb"><span class="dot green"></span><span id="pageTitle">Market Overview</span></div><div class="topactions"><span class="last-sync" id="lastSync">Not synced</span><button id="refresh" class="action secondary">↻ Refresh</button></div></header>
+ <section class="page" id="dashboardPage"></section>
+ <section class="page" id="flipsPage" hidden></section>
+ <section class="page" id="intelPage" hidden></section>
+ <section class="page" id="portfolioPage" hidden></section>
+ <section class="page" id="watchlistPage" hidden></section>
+ <section class="page" id="moneyPage" hidden></section>
+ <section class="page" id="settingsPage" hidden></section>
+</main></div>
+<nav class="bottomnav" aria-label="Mobile navigation"><button data-page="dashboard" class="active">◈<small>Overview</small></button><button data-page="flips">↗<small>Flips</small></button><button data-page="intel">◉<small>Analyze</small></button><button data-page="portfolio">▤<small>Portfolio</small></button><button data-page="watchlist">☆<small>Alerts</small></button><button data-page="money">◇<small>Methods</small></button></nav>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+<script type="module" src="./app.js"></script></body></html>
