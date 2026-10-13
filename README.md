@@ -6,6 +6,10 @@
 
 OSRS Pump is an independent community project. Not affiliated with or endorsed by Jagex or the OSRS Wiki. Old School RuneScape and RuneScape are trademarks of their respective owners.
 
+## v0.3 redesign blueprint (planning documents)
+
+The [v0.3 product blueprint](docs/v0.3/README.md) includes all four requested developer specifications: [screen-by-screen OSRS redesign](docs/v0.3/01-SCREENS.md), [prioritized feature backlog](docs/v0.3/02-BACKLOG.md), [UI/component architecture](docs/v0.3/03-COMPONENTS.md) and [advanced market filters/formulas](docs/v0.3/04-FILTERS-AND-FORMULAS.md). **These are development plans, not implemented features of the current Android beta.**
+
 ## Android APK (Beta)
 
 **[Download OSRS Pump v0.2.0-beta.1 APK](https://github.com/mandecoy/OSRS-Pump/releases/download/v0.2.0-beta.1/OSRS-Pump-v0.2.0-beta.1.apk)** — or browse the [release page](https://github.com/mandecoy/OSRS-Pump/releases/tag/v0.2.0-beta.1).
