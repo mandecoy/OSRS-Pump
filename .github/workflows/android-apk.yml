@@ -1,0 +1,78 @@
+name: Android APK
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'android/**'
+      - 'app.js'
+      - 'logic.js'
+      - 'styles.css'
+      - 'index.html'
+      - 'manifest.webmanifest'
+      - 'icons/**'
+      - '.github/workflows/android-apk.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify JavaScript calculations
+        run: |
+          npm test
+          npm run check
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+      - uses: android-actions/setup-android@v3
+      - name: Install Android SDK platform
+        run: sdkmanager --install 'platforms;android-35' 'build-tools;35.0.0'
+      - name: Package local UI as Android assets
+        shell: bash
+        run: |
+          mkdir -p android/app/src/main/assets/web/icons
+          cp index.html app.js logic.js styles.css manifest.webmanifest android/app/src/main/assets/web/
+          cp icons/pump.svg android/app/src/main/assets/web/icons/
+          python3 - <<'PY'
+          from pathlib import Path
+          path=Path('android/app/src/main/assets/web/app.js')
+          source=path.read_text()
+          old="function download(data,name){"
+          assert old in source
+          source=source.replace(old,old+"if(globalThis.OSRSPumpAndroid){globalThis.OSRSPumpAndroid.saveBackup(data);return;}",1)
+          # The native bridge serves local assets and API calls; no SW needed.
+          old_sw="if('serviceWorker' in navigator)"
+          assert old_sw in source
+          source=source.replace(old_sw,"if(!navigator.userAgent.includes('OSRSPumpNative') && 'serviceWorker' in navigator)",1)
+          path.write_text(source)
+          PY
+      - name: Build debug-signed Android APK
+        run: gradle -p android --no-daemon --stacktrace assembleDebug
+      - name: Verify APK exists
+        run: |
+          test -s android/app/build/outputs/apk/debug/app-debug.apk
+          cp android/app/build/outputs/apk/debug/app-debug.apk OSRS-Pump-v0.2.0-beta.1.apk
+          sha256sum OSRS-Pump-v0.2.0-beta.1.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: OSRS-Pump-Android-beta-APK
+          path: OSRS-Pump-v0.2.0-beta.1.apk
+          retention-days: 30
+      - name: Publish downloadable GitHub beta release
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if ! gh release view v0.2.0-beta.1 >/dev/null 2>&1; then
+            gh release create v0.2.0-beta.1 OSRS-Pump-v0.2.0-beta.1.apk \
+              --prerelease \
+              --title "OSRS Pump Android v0.2.0 beta 1" \
+              --notes "First Android beta. Includes native same-origin OSRS Wiki API proxy, local trade journal, watchlists, flipping analysis and money-making calculators. Alerts evaluate only while the app is open. Debug-signed early-access build: future updates may require reinstalling; export your trades first."
+          fi
