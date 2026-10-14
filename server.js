@@ -45,7 +45,7 @@ http.createServer(async(req,res)=>{
     return proxy(route,res);
   }
   const requestPath=(url.pathname==='/'?'/index.html':decodeURIComponent(url.pathname));
-  const allowed=new Set(['/index.html','/styles.css','/app.js','/v03.js','/history-chart.js','/logic.js','/v03.css','/manifest.webmanifest','/sw.js','/icons/pump.svg']);
+  const allowed=new Set(['/index.html','/styles.css','/app.js','/v03.js','/history-chart.js','/logic.js','/market-intel.js','/v03.css','/manifest.webmanifest','/sw.js','/icons/pump.svg']);
   if(!allowed.has(requestPath)){res.writeHead(404);res.end('Not found');return;}
   const path=resolve(root,'.'+requestPath);
   if(!path.startsWith(root+sep)){res.writeHead(403);res.end();return;}
