@@ -1,10 +1,11 @@
 import {gp,compact,pct,flip,geTax,mapMarket,filterMarket,analyzeHistory,journalMetrics,highAlchProfit,volumeOf} from './logic.js';
 import * as V03 from './v03.js';
+import * as HISTORY from './history-chart.js';
 const $=selector=>document.querySelector(selector);
 const names={dashboard:'Market Overview',markets:'Explore Markets',flips:'Advanced Flip Finder',intel:'Item Intelligence',portfolio:'Trade Portfolio',watchlist:'Watchlist & Alerts',money:'Money-Making Methods',settings:'Settings & Sources'};
 const KEY='osrs-pump-v1';
 const makeId=()=>globalThis.crypto?.randomUUID?.()||`local-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-const defaults={page:'dashboard',watchlist:[],alerts:[],trades:[],selected:4151,historyStep:'1h',filter:{sort:'score',profitable:true,minScore:50},v3Filter:{...V03.DEFAULT_FILTER},v3Category:null,v3Limit:10,v3FilterRevision:2,alchLimit:10,process:{input:1000,output:1500,inputQty:1,outputQty:1,actionsPerHour:300}};
+const defaults={page:'dashboard',watchlist:[],alerts:[],trades:[],selected:4151,historyStep:'1h',historyWindow:'day',filter:{sort:'score',profitable:true,minScore:50},v3Filter:{...V03.DEFAULT_FILTER},v3Category:null,v3Limit:10,v3FilterRevision:2,alchLimit:10,process:{input:1000,output:1500,inputQty:1,outputQty:1,actionsPerHour:300}};
 function loadLocal(){try{const x=JSON.parse(localStorage.getItem(KEY)||'{}');return {...defaults,...x,filter:{...defaults.filter,...x.filter},v3Filter:x.v3FilterRevision===2?{...V03.DEFAULT_FILTER,...x.v3Filter}:{...V03.DEFAULT_FILTER},v3Limit:10,v3FilterRevision:2};}catch{return {...defaults};}}
 const user=loadLocal();
 const state={mapping:[],latest:{},h:{},five:{},day:{},market:[],byId:{},history:[],historyId:null,historyStep:null,busy:false,error:null,loadedAt:0,alchRows:[]};
@@ -15,7 +16,7 @@ const notice=s=>`<div class="info-bar">${s}</div>`;
 const empty=(t,d)=>`<div class="emptystate"><strong>${t}</strong>${d}</div>`;
 const field=(label,name,value='',placeholder='',type='number')=>`<div class="field"><label for="f-${esc(name)}">${esc(label)}</label><input id="f-${esc(name)}" name="${esc(name)}" type="${type}" value="${esc(value)}" placeholder="${esc(placeholder)}" ${type==='number'?'min="0"':''}></div>`;
 const titleLink=(id)=>`<a target="_blank" rel="noopener" href="https://prices.runescape.wiki/osrs/item/${id}">Wiki item prices ↗</a>`;
-function save(){localStorage.setItem(KEY,JSON.stringify({page:user.page,watchlist:user.watchlist,alerts:user.alerts,trades:user.trades,selected:user.selected,historyStep:user.historyStep,filter:user.filter,v3Filter:user.v3Filter,v3Category:user.v3Category,v3Limit:user.v3Limit,v3FilterRevision:user.v3FilterRevision,alchLimit:user.alchLimit,process:user.process}));}
+function save(){localStorage.setItem(KEY,JSON.stringify({page:user.page,watchlist:user.watchlist,alerts:user.alerts,trades:user.trades,selected:user.selected,historyStep:user.historyStep,historyWindow:user.historyWindow,filter:user.filter,v3Filter:user.v3Filter,v3Category:user.v3Category,v3Limit:user.v3Limit,v3FilterRevision:user.v3FilterRevision,alchLimit:user.alchLimit,process:user.process}));}
 let toastTimer;
 function toast(s){const el=$('#toast');el.textContent=s;el.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('show'),4000);}
 function item(id){return state.byId[Number(id)];}
@@ -48,22 +49,67 @@ function renderFlips(){const f=user.filter;$('#flipsPage').innerHTML=head('OSRS 
  $('#resetFilters').addEventListener('click',()=>{user.filter={sort:'score',profitable:true,minScore:50};save();renderFlips();});
  renderFlipTable();}
 function selectItem(id){const m=lookup(id);if(!m){toast('Item not found in current market feed');return;}user.selected=Number(id);save();state.historyId=null;state.history=[];nav('intel');loadHistory();}
-async function loadHistory(){const id=Number(user.selected),step=user.historyStep;if(!id||!state.mapping.length)return;state.historyId=id;state.historyStep=step;state.history=[];renderIntel();try{const d=await fetchJson(`timeseries?id=${id}&step=${step}`);if(state.historyId===id&&state.historyStep===step){state.history=Array.isArray(d.data)?d.data:[];renderIntel();}}catch(e){toast('Price history unavailable: '+e.message);}}
-function plotHistory(points){const clean=points.filter(x=>Number(x.avgHighPrice)>0&&Number(x.avgLowPrice)>0).slice(-150);if(clean.length<2)return empty('Not enough recent trades','The historical API does not have sufficient paired prices for a chart.');
- const width=820,height=210,pad=18,prices=clean.flatMap(x=>[Number(x.avgHighPrice),Number(x.avgLowPrice)]),min=Math.min(...prices),max=Math.max(...prices),range=Math.max(1,max-min),x=i=>pad+i*(width-pad*2)/(clean.length-1),y=v=>height-pad-(v-min)/range*(height-2*pad);
- const poly=k=>clean.map((p,i)=>`${x(i).toFixed(1)},${y(Number(p[k])).toFixed(1)}`).join(' ');
- return `<div class="chart"><svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" aria-label="OSRS Wiki historical averaged high and low trade prices"><polyline points="${poly('avgHighPrice')}" stroke="#f5bb77" stroke-width="2.4" fill="none" vector-effect="non-scaling-stroke"/><polyline points="${poly('avgLowPrice')}" stroke="#6dceaa" stroke-width="2.4" fill="none" vector-effect="non-scaling-stroke"/></svg></div><div class="chart-legend"><span><span class="swatch" style="background:#f5bb77"></span>Instant-buy average (high)</span><span><span class="swatch" style="background:#6dceaa"></span>Instant-sell average (low)</span><span>${clean.length} points</span></div>`;
+async function loadHistory(){
+ const id=Number(user.selected),range=HISTORY.WINDOWS[user.historyWindow]?user.historyWindow:'day';
+ if(!id||!state.mapping.length)return;
+ const step=HISTORY.WINDOWS[range].step;
+ state.historyId=id;state.historyStep=step;state.historyWindow=range;state.history=[];renderIntel();
+ try{
+  const d=await fetchJson('timeseries?id='+id+'&step='+step);
+  if(state.historyId===id&&state.historyWindow===range){
+   state.history=Array.isArray(d.data)?d.data:[];renderIntel();
+  }
+ }catch(e){toast('Price history unavailable: '+e.message);renderIntel();}
 }
-function renderIntel(){const m=lookup(user.selected),x=item(user.selected);if(!m){$('#intelPage').innerHTML=head('OSRS Pump / Deep dive','Item Intelligence','Select an item in the Flip Finder to review its history.')+(state.market.length?empty('Choose a market item','Open a market row from the dashboard or screener.'):loading());return;}
- const h=state.historyId===m.id&&state.historyStep===user.historyStep?state.history:[];
- const hourly=h.filter(p=>Number(p.timestamp)>Date.now()/1000-86400),summary=analyzeHistory(hourly,m.name),historical=analyzeHistory(h,m.name);const current=x?flip(x.buy,x.sell,x.name):null;
- $('#intelPage').innerHTML=head('OSRS Pump / Detailed analysis',m.name,'Historical transactions, tax-aware target ranges and recent trading activity.',`<button class="action secondary" id="intelWatch">${user.watchlist.includes(m.id)?'★ Watching':'☆ Add to watchlist'}</button>`)+
- `${x?`<div class="stats">${metric('Observed buy target',gp(x.buy),'Latest instant-sell trade')}${metric('Observed sell target',gp(x.sell),'Latest instant-buy trade')}${metric('Net flip / item',gp(x.net),'2% tax, exceptions applied',x.net>=0?'positive':'negative')}${metric('Liquidity',compact(x.v1)+'/hour','Activity · '+stamp(x.age))}</div>`:notice('Current high/low prices unavailable for this item.')}`+
- `<div class="card"><div class="section-heading"><h3>Historical market chart</h3><div class="tabs">${[['5m','5 min'],['1h','1 hour'],['6h','6 hour'],['24h','Daily']].map(([a,b])=>`<button class="${user.historyStep===a?'active':''}" data-history="${a}">${b}</button>`).join('')}</div></div>${state.historyId===m.id&&h.length?plotHistory(h):empty('Fetching public price history','The chart uses historical aggregated market trades, not a live order book.')}</div>`+
- `<div class="analysis-grid" style="margin-top:15px">${metric('24h low (averaged)',summary.low24!=null?gp(summary.low24):'—','Lowest sampled interval average')}${metric('24h high (averaged)',summary.high24!=null?gp(summary.high24):'—','Highest sampled interval average')}${metric('History buy range',historical.entry!=null?gp(historical.entry):'—','25th percentile of avg lows')}${metric('History sell range',historical.exit!=null?gp(historical.exit):'—','75th percentile of avg highs')}</div>`+
- `<div class="split" style="margin-top:16px"><div class="card"><div class="section-heading"><h3>Execution profile</h3></div><div class="item-row"><strong>GE buy limit / 4h</strong><strong>${esc(m.limit??'Not listed')}</strong></div><div class="item-row"><strong>Latest trade age</strong><strong>${x?stamp(x.age):'—'}</strong></div><div class="item-row"><strong>24h sampled transactions</strong><strong>${summary.samples?compact(summary.volume):'—'}</strong></div><div class="item-row"><strong>GE sale tax / item</strong><strong>${current?gp(current.tax):'—'}</strong></div><div class="item-row"><strong>Heuristic quality score</strong><strong>${x?x.score+'/100':'—'}</strong></div><div class="item-row"><strong>Members only</strong><strong>${m.members?'Yes':'No'}</strong></div><p class="smallnote">Buy/sell ranges are statistical reference points only; no guaranteed fills or forward-looking price prediction. ${titleLink(m.id)}</p></div><div class="card"><div class="section-heading"><h3>Trade action</h3></div><p class="smallnote kicker">Add a position to your local trade journal. Enter your actual executed prices to measure real profit.</p><button class="action" id="newTrade">+ Record a flip</button><div class="divider-x"></div><h3>Item description</h3><p class="smallnote">${esc(m.examine||'Item details provided by the OSRS Wiki mapping endpoint.')}</p></div></div>`;
- $('#intelWatch').addEventListener('click',()=>{toggleWatch(m.id);renderIntel();});$('#newTrade').addEventListener('click',()=>{nav('portfolio');});
- for(const b of document.querySelectorAll('#intelPage [data-history]'))b.addEventListener('click',()=>{user.historyStep=b.dataset.history;save();loadHistory();});
+function plotHistory(points,range){
+ return HISTORY.renderHistoryChart(points,range);
+}
+function renderIntel(){
+ const m=lookup(user.selected),x=item(user.selected);
+ if(!m){
+  $('#intelPage').innerHTML=head('OSRS Pump / Deep dive','Item Intelligence','Select an item from Markets or the Flip Finder to review its history.')+(state.market.length?empty('Choose a market item','Select an item to inspect its history.'):loading());
+  return;
+ }
+ const range=HISTORY.WINDOWS[user.historyWindow]?user.historyWindow:'day';
+ const config=HISTORY.WINDOWS[range];
+ const source=state.historyId===Number(m.id)&&state.historyWindow===range?state.history:[];
+ const samples=HISTORY.selectWindow(source,range);
+ const summary=analyzeHistory(samples,m.name),current=x?flip(x.buy,x.sell,x.name):null;
+ const icon=m.icon?'https://oldschool.runescape.wiki/images/'+encodeURIComponent(String(m.icon).replace(/ /g,'_')):'';
+ const iconTag=icon?'<img src="'+esc(icon)+'" loading="lazy" alt="'+esc(m.name)+' icon" onerror="this.style.display=\'none\'">':'◆';
+ const wiki='https://prices.runescape.wiki/osrs/item/'+encodeURIComponent(m.id);
+ const buttons='<div class="pump-detail-actions"><a class="action secondary pump-wiki-button" href="'+wiki+'" target="_blank" rel="noopener noreferrer">↗ OSRS Wiki Prices</a><button class="action secondary" id="intelWatch">'+(user.watchlist.includes(m.id)?'★ Watching':'☆ Watch')+'</button></div>';
+ const header='<div class="pump-detail-item"><div class="pump-detail-icon">'+iconTag+'</div><div class="pump-detail-names"><small>GRAND EXCHANGE ITEM</small><h2>'+esc(m.name)+'</h2><span>Item #'+Number(m.id)+' · '+(m.members?'Members':'Free-to-play')+'</span></div></div>';
+ const ranges=Object.entries(HISTORY.WINDOWS).map(([key,v])=>'<button type="button" class="'+(range===key?'active':'')+'" data-chart-window="'+key+'" aria-pressed="'+(range===key?'true':'false')+'">'+v.label+'</button>').join('');
+ const chart=source.length?plotHistory(samples,range):empty('Loading price history','Loading publicly sourced history for this item and interval.');
+ const section='<div class="card pump-history-card"><div class="pump-history-head"><div><h3>Price history</h3><p>GP per item · '+config.title+' window · '+config.step+' average buckets</p></div></div><div class="pump-history-tabs">'+ranges+'</div>'+chart+'</div>';
+ const unavailable='—';
+ const stats=x?'<div class="stats">'+
+  metric('Observed buy target',gp(x.buy),'Recent instant sell')+
+  metric('Observed sell target',gp(x.sell),'Recent instant buy')+
+  metric('Net flip / item',gp(x.net),'After GE sale tax',x.net>=0?'positive':'negative')+
+  metric('24h traded volume',x.dayVol==null?'—':compact(x.dayVol),'Completed units · Activity '+stamp(x.age))+
+ '</div>':notice('Latest completed high/low prices unavailable; historical points may still be available.');
+ const intervalMetrics='<div class="analysis-grid pump-range-metrics">'+
+  metric(config.title+' sampled low',summary.low24!=null?gp(summary.low24):unavailable,'Lowest interval average')+
+  metric(config.title+' sampled high',summary.high24!=null?gp(summary.high24):unavailable,'Highest interval average')+
+  metric('Sampled units',summary.samples?compact(summary.volume):unavailable,'From available bucket data')+
+  metric('Samples',String(samples.length),config.step+' buckets in selected window')+'</div>';
+ const analysis='<div class="split" style="margin-top:16px"><div class="card"><div class="section-heading"><h3>Execution profile</h3></div>'+
+  '<div class="item-row"><strong>GE buy limit / 4h</strong><strong>'+esc(m.limit??'Not listed')+'</strong></div>'+
+  '<div class="item-row"><strong>Last observed transaction age</strong><strong>'+(x?stamp(x.age):unavailable)+'</strong></div>'+
+  '<div class="item-row"><strong>GE sale tax / item</strong><strong>'+(current?gp(current.tax):unavailable)+'</strong></div>'+
+  '<div class="item-row"><strong>Quality heuristic</strong><strong>'+(x?x.score+'/100':unavailable)+'</strong></div>'+
+  '<p class="smallnote">Price ranges represent interval averages, not individual trade extremes. Wiki history has no standing order-book depth.</p></div>'+
+  '<div class="card"><div class="section-heading"><h3>Trade action</h3></div><p class="smallnote">Log actual fill prices to calculate realized profits.</p><button class="action" id="newTrade">+ Record a flip</button>'+
+  '<div class="divider-x"></div><p class="smallnote">'+esc(m.examine||'Details supplied by the public OSRS Wiki mapping.')+'</p></div></div>';
+ $('#intelPage').innerHTML=head('OSRS Pump / Item Intelligence','Item market analysis','Public trade history and price/volume inspection.',buttons)+header+stats+section+intervalMetrics+analysis;
+ $('#intelWatch').addEventListener('click',()=>{toggleWatch(m.id);renderIntel();});
+ $('#newTrade').addEventListener('click',()=>nav('portfolio'));
+ for(const b of document.querySelectorAll('#intelPage [data-chart-window]')){
+  b.addEventListener('click',()=>{if(user.historyWindow===b.dataset.chartWindow)return;user.historyWindow=b.dataset.chartWindow;save();loadHistory();});
+ }
+ HISTORY.bindHistoryChart(samples,range);
 }
 function resolveItemName(value){
  const name=String(value??'').trim();if(!name)return null;

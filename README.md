@@ -12,6 +12,9 @@ The [v0.3 product blueprint](docs/v0.3/README.md) includes all four requested de
 
 ## Android APK (Beta)
 
+**v0.3.2 Beta 1:** Interactive history chart with GP price labels, touch/keyboard sample inspection showing instant-buy and instant-sell averages plus both trade-volume sides, 1-day/7-day/30-day/90-day views, item image next to the name, and direct OSRS Wiki prices link. Prices are bucket averages of public completed trades. The latest beta is built by GitHub Actions; verify successful release before downloading. Export JSON before replacing debug-signed beta APKs.
+
+
 **[OSRS Pump Android releases](https://github.com/mandecoy/OSRS-Pump/releases)** — choose v0.3.1-beta.1 after its GitHub Actions build publishes the APK. The prior [v0.3.0-beta.1 release](https://github.com/mandecoy/OSRS-Pump/releases/tag/v0.3.0-beta.1) remains available.
 
 This APK runs the local app UI inside an Android WebView. Native Java code fetches public Wiki prices using an identifiable User-Agent with short-lived caching; it does **not** require running Node.js on the phone. Portfolio, trade journal, watchlists and alert rules remain stored on your device. Export a JSON backup before uninstalling or upgrading beta builds.

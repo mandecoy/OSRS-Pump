@@ -146,3 +146,38 @@ h1,h2,h3,h4{color:var(--pump-text)}
  .crumb{max-width:80px;font-size:10px}
  .pump-section-title h2{font-size:22px}
 }
+
+
+/* v0.3.2 chart with GP axis, per-point volume readout and item identity */
+.pump-detail-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.pump-wiki-button{display:inline-flex;align-items:center;justify-content:center;min-height:44px;text-decoration:none!important}
+.pump-detail-item{display:flex;align-items:center;gap:17px;padding:17px 18px;border:1px solid #715c37;background:linear-gradient(140deg,#2f291d,#211e17);border-radius:14px;margin:10px 0 18px}
+.pump-detail-icon{width:72px;height:72px;flex:0 0 72px;display:flex;justify-content:center;align-items:center;background:#1a1914;border:1px solid #6e5c40;border-radius:12px;color:#ddbe76;font-size:32px}
+.pump-detail-icon img{max-width:60px;max-height:60px;object-fit:contain;image-rendering:pixelated}
+.pump-detail-names{min-width:0}.pump-detail-names small{color:#d9b763;font-size:10px;letter-spacing:1.1px;font-weight:700}
+.pump-detail-names h2{font-size:24px;line-height:1.25;overflow-wrap:anywhere;margin:5px 0 7px}
+.pump-detail-names span{font-size:12px;color:#b9ad93}
+.pump-history-card{margin:16px 0;padding:19px 17px!important}
+.pump-history-head h3{font-size:20px;margin:0}.pump-history-head p{font-size:12px;color:#c3b393;margin:4px 0 10px}
+.pump-history-tabs{display:flex;flex-wrap:wrap;gap:7px;margin:15px 0 20px}
+.pump-history-tabs button{border:1px solid #78613e;background:#362e22;color:#ead7ae;border-radius:10px;padding:10px 14px;min-height:42px;cursor:pointer;font-size:13px}
+.pump-history-tabs button.active{background:#795528;border-color:#d7ab5c;color:#ffecbf;font-weight:800}
+.pump-chart-layout{display:flex;gap:7px;min-width:0}
+.pump-chart-ylabels{display:flex;flex-direction:column;justify-content:space-between;min-width:70px;max-width:78px;align-items:flex-end;padding:0 2px 29px 0;color:#c6b99e;font-size:11px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.pump-chart-main{flex:1;min-width:0}
+#pumpChartPlot{display:block;width:100%;height:270px;touch-action:pan-y;border:1px solid #55452b;border-radius:8px;background:linear-gradient(180deg,#1b1c16,#24231d);outline-offset:4px}
+#pumpChartPlot:focus-visible{outline:2px solid #edc46e}
+.pump-chart-xlabels{display:flex;align-items:center;justify-content:space-between;gap:4px;margin-top:9px;color:#c1b69c;font-size:10px}
+.pump-chart-legend{display:flex;gap:15px;flex-wrap:wrap;margin-top:17px;color:#cdbda0;font-size:12px}
+.pump-dot-high{color:#f2b877}.pump-dot-low{color:#65d0ab}
+.pump-chart-hint{font-size:11px;line-height:1.5;color:#b6a88a;margin:11px 0}
+.pump-chart-details{border:1px solid #74603e;border-radius:11px;background:#1a1a15;padding:14px;margin-top:13px;min-height:115px}
+.pump-chart-detail-time{font-weight:750;font-size:13px;color:#e9c880;margin-bottom:12px}
+.pump-chart-detail-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}
+.pump-chart-detail-grid span{display:flex;flex-direction:column;gap:5px}
+.pump-chart-detail-grid small{color:#c5b798;font-size:11px}
+.pump-chart-detail-grid strong{color:#f0e1c0;font-size:14px;font-variant-numeric:tabular-nums}
+.pump-price-high{color:#f2b877!important}.pump-price-low{color:#65d0ab!important}
+.pump-chart-no-data{border:1px dashed #74603e;padding:32px 18px;border-radius:10px;color:#c9bba1;font-size:13px;line-height:1.5}
+.pump-range-metrics{margin-top:14px}
+@media(max-width:480px){.pump-detail-item{gap:12px;padding:12px}.pump-detail-icon{height:58px;width:58px;flex-basis:58px}.pump-detail-icon img{max-width:51px;max-height:51px}.pump-detail-names h2{font-size:20px}.pump-history-card{padding:16px 10px!important}.pump-chart-ylabels{min-width:60px;max-width:66px;font-size:10px}#pumpChartPlot{height:240px}.pump-chart-detail-grid{gap:12px 8px}.pump-detail-actions .action{font-size:12px;padding:9px 12px}}
