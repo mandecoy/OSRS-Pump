@@ -11,4 +11,4 @@ jobs:
         with:
           node-version: '22'
       - run: npm test
-      - run: node --check app.js && node --check server.js && node --check logic.js
+      - run: node --check app.js && node --check market-intel.js && node --check v03.js && node --check history-chart.js && node --check server.js && node --check logic.js
