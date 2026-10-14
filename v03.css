@@ -181,3 +181,26 @@ h1,h2,h3,h4{color:var(--pump-text)}
 .pump-chart-no-data{border:1px dashed #74603e;padding:32px 18px;border-radius:10px;color:#c9bba1;font-size:13px;line-height:1.5}
 .pump-range-metrics{margin-top:14px}
 @media(max-width:480px){.pump-detail-item{gap:12px;padding:12px}.pump-detail-icon{height:58px;width:58px;flex-basis:58px}.pump-detail-icon img{max-width:51px;max-height:51px}.pump-detail-names h2{font-size:20px}.pump-history-card{padding:16px 10px!important}.pump-chart-ylabels{min-width:60px;max-width:66px;font-size:10px}#pumpChartPlot{height:240px}.pump-chart-detail-grid{gap:12px 8px}.pump-detail-actions .action{font-size:12px;padding:9px 12px}}
+
+
+/* Explainable signals, trade sizing and expanded watchlist metrics. */
+.pump-risk{display:inline-block;width:fit-content;border:1px solid #776b43;border-radius:7px;padding:3px 7px;margin-top:6px;font-size:10px;font-weight:750;line-height:1.35;background:#342e21;color:#d6bc7b}
+.pump-risk-high{border-color:#a15349;background:#44251f;color:#ffad98}
+.pump-risk-caution{border-color:#a17e37;background:#42331c;color:#f4d080}
+.pump-risk-normal{border-color:#53865b;background:#26372a;color:#a5dbad}
+.pump-risk-unknown{border-color:#555;background:#302f2b;color:#aaa}
+.pump-sizer{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.pump-sizer .stat-number{overflow-wrap:anywhere}
+.pump-watch-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:10px 0}
+.pump-watch-cell{background:#1e1d18;border:1px solid #53472f;border-radius:9px;padding:10px;min-width:0}
+.pump-watch-cell small{display:block;color:#ae9b79;font-size:10px}
+.pump-watch-cell strong{display:block;color:#f6e1ab;font-size:13px;margin-top:4px;overflow-wrap:anywhere}
+.pump-watch-card{padding:14px 0;border-bottom:1px solid #554c36}
+.pump-watch-card:last-child{border-bottom:0}
+.pump-watch-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.pump-watch-name{display:flex;align-items:center;gap:10px;min-width:0}
+.pump-watch-name img{width:34px;height:34px;object-fit:contain}
+.pump-watch-name strong{font-size:14px}
+.pump-watch-sub{color:#ad9f84;font-size:11px;margin:8px 0}
+.pump-watch-actions{display:flex;gap:9px;flex-wrap:wrap}
+@media(max-width:790px){.pump-sizer{grid-template-columns:repeat(2,minmax(0,1fr))}.pump-watch-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
