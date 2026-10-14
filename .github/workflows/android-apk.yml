@@ -4,6 +4,7 @@ on:
     branches: [main]
     paths:
       - 'android/**'
+      - 'tests/**'
       - 'app.js'
       - 'history-chart.js'
       - 'v03.js'
