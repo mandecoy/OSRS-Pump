@@ -16,6 +16,9 @@ on:
   workflow_dispatch:
 permissions:
   contents: write
+concurrency:
+  group: android-apk-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   build-android:
     runs-on: ubuntu-latest
@@ -77,7 +80,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if ! gh release view v0.3.1-beta.1 >/dev/null 2>&1; then
+          if gh release view v0.3.1-beta.1 >/dev/null 2>&1; then
+            gh release upload v0.3.1-beta.1 OSRS-Pump-v0.3.1-beta.1.apk --clobber
+          else
             gh release create v0.3.1-beta.1 OSRS-Pump-v0.3.1-beta.1.apk \
               --prerelease \
               --title "OSRS Pump Android v0.3.1 beta 1" \
