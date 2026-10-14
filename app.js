@@ -1,14 +1,16 @@
 import {gp,compact,pct,flip,geTax,mapMarket,filterMarket,analyzeHistory,journalMetrics,highAlchProfit,volumeOf} from './logic.js';
 import * as V03 from './v03.js';
+import {historical24h} from './logic.js';
+import {sizingCard,watchCard,alertValue,alertDisplay,ALERT_METRICS} from './market-intel.js';
 import * as HISTORY from './history-chart.js';
 const $=selector=>document.querySelector(selector);
 const names={dashboard:'Market Overview',markets:'Explore Markets',flips:'Advanced Flip Finder',intel:'Item Intelligence',portfolio:'Trade Portfolio',watchlist:'Watchlist & Alerts',money:'Money-Making Methods',settings:'Settings & Sources'};
 const KEY='osrs-pump-v1';
 const makeId=()=>globalThis.crypto?.randomUUID?.()||`local-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-const defaults={page:'dashboard',watchlist:[],alerts:[],trades:[],selected:4151,historyStep:'1h',historyWindow:'day',filter:{sort:'score',profitable:true,minScore:50},v3Filter:{...V03.DEFAULT_FILTER},v3Category:null,v3Limit:10,v3FilterRevision:2,alchLimit:10,process:{input:1000,output:1500,inputQty:1,outputQty:1,actionsPerHour:300}};
+const defaults={page:'dashboard',watchlist:[],alerts:[],trades:[],selected:4151,historyStep:'1h',historyWindow:'day',filter:{sort:'score',profitable:true,minScore:50},v3Filter:{...V03.DEFAULT_FILTER},v3Category:null,v3Limit:10,v3FilterRevision:2,alchLimit:10,process:{input:1000,output:1500,inputQty:1,outputQty:1,actionsPerHour:300},tradingGp:1000000,watchLimit:10};
 function loadLocal(){try{const x=JSON.parse(localStorage.getItem(KEY)||'{}');return {...defaults,...x,filter:{...defaults.filter,...x.filter},v3Filter:x.v3FilterRevision===2?{...V03.DEFAULT_FILTER,...x.v3Filter}:{...V03.DEFAULT_FILTER},v3Limit:10,v3FilterRevision:2};}catch{return {...defaults};}}
 const user=loadLocal();
-const state={mapping:[],latest:{},h:{},five:{},day:{},market:[],byId:{},history:[],historyId:null,historyStep:null,busy:false,error:null,loadedAt:0,alchRows:[]};
+const state={mapping:[],latest:{},h:{},five:{},day:{},market:[],byId:{},history:[],historyId:null,historyStep:null,busy:false,error:null,loadedAt:0,alchRows:[],watchHistory:{},historyLoading:new Set()};
 const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const metric=(label,value,foot='',cls='')=>`<div class="card"><div class="stat-label">${esc(label)}</div><div class="stat-number ${cls}">${esc(value)}</div><div class="stat-foot">${esc(foot)}</div></div>`;
 const head=(eyebrow,title,description,action='')=>`<div class="heading"><div><div class="eyebrow">${esc(eyebrow)}</div><h2>${esc(title)}</h2><p>${esc(description)}</p></div>${action}</div>`;
@@ -16,20 +18,20 @@ const notice=s=>`<div class="info-bar">${s}</div>`;
 const empty=(t,d)=>`<div class="emptystate"><strong>${t}</strong>${d}</div>`;
 const field=(label,name,value='',placeholder='',type='number')=>`<div class="field"><label for="f-${esc(name)}">${esc(label)}</label><input id="f-${esc(name)}" name="${esc(name)}" type="${type}" value="${esc(value)}" placeholder="${esc(placeholder)}" ${type==='number'?'min="0"':''}></div>`;
 const titleLink=(id)=>`<a target="_blank" rel="noopener" href="https://prices.runescape.wiki/osrs/item/${id}">Wiki item prices ↗</a>`;
-function save(){localStorage.setItem(KEY,JSON.stringify({page:user.page,watchlist:user.watchlist,alerts:user.alerts,trades:user.trades,selected:user.selected,historyStep:user.historyStep,historyWindow:user.historyWindow,filter:user.filter,v3Filter:user.v3Filter,v3Category:user.v3Category,v3Limit:user.v3Limit,v3FilterRevision:user.v3FilterRevision,alchLimit:user.alchLimit,process:user.process}));}
+function save(){localStorage.setItem(KEY,JSON.stringify({page:user.page,watchlist:user.watchlist,alerts:user.alerts,trades:user.trades,selected:user.selected,historyStep:user.historyStep,historyWindow:user.historyWindow,filter:user.filter,v3Filter:user.v3Filter,v3Category:user.v3Category,v3Limit:user.v3Limit,v3FilterRevision:user.v3FilterRevision,alchLimit:user.alchLimit,process:user.process,tradingGp:user.tradingGp,watchLimit:user.watchLimit}));}
 let toastTimer;
 function toast(s){const el=$('#toast');el.textContent=s;el.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('show'),4000);}
 function item(id){return state.byId[Number(id)];}
 function lookup(id){return state.mapping.find(x=>Number(x.id)===Number(id));}
 function nav(page){if(!names[page])return;user.page=page;save();for(const el of document.querySelectorAll('.page'))el.hidden=el.id!==page+'Page';for(const b of document.querySelectorAll('[data-page]'))b.classList.toggle('active',b.dataset.page===page);$('#pageTitle').textContent=names[page];window.scrollTo({top:0,behavior:'auto'});renderPage();}
 function v3ctx(){return {rows:state.market,alchRows:state.alchRows,user,nav,save,toast,renderPage};}
-function renderPage(){switch(user.page){case 'dashboard':$('#dashboardPage').innerHTML=V03.home(v3ctx());return;case 'markets':$('#marketsPage').innerHTML=V03.markets(v3ctx());return;case 'flips':$('#flipsPage').innerHTML=V03.flips(v3ctx());return;case 'intel':return renderIntel();case 'portfolio':return renderPortfolio();case 'watchlist':return renderWatchlist();case 'money':return renderMoney();case 'settings':return renderSettings();}}
+function renderPage(){switch(user.page){case 'dashboard':$('#dashboardPage').innerHTML=V03.home(v3ctx());return;case 'markets':$('#marketsPage').innerHTML=V03.markets(v3ctx());return;case 'flips':$('#flipsPage').innerHTML=V03.flips(v3ctx());return;case 'intel':return renderIntel();case 'portfolio':return renderPortfolio();case 'watchlist':renderWatchlist();void ensureWatchHistory();return;case 'money':return renderMoney();case 'settings':return renderSettings();}}
 function status(){const date=state.loadedAt?new Date(state.loadedAt).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):'Not synced';$('#lastSync').textContent=state.busy?'Syncing Wiki data…':date;$('#refresh').disabled=state.busy;}
 async function fetchJson(path){const res=await fetch('/api/'+path,{cache:'no-store'});const data=await res.json().catch(()=>({error:'Non-JSON response'}));if(!res.ok)throw new Error(data.detail||data.error||`HTTP ${res.status}`);return data;}
 async function loadMarket(){if(state.busy)return;state.busy=true;state.error=null;status();renderPage();try{
  const [mapping,latest,h,five,day]=await Promise.all([fetchJson('mapping'),fetchJson('latest'),fetchJson('1h'),fetchJson('5m'),fetchJson('24h').catch(()=>({data:{}}))]);
  state.mapping=mapping;state.latest=latest;state.h=h;state.five=five;state.day=day;state.market=V03.decorate(mapMarket(mapping,latest,h,five),h,five,day);
- state.byId=Object.fromEntries(state.market.map(x=>[x.id,x]));state.alchRows=V03.alchemyRows(mapping,latest,h,five,day);state.loadedAt=Date.now();evaluateAlerts();
+ state.byId=Object.fromEntries(state.market.map(x=>[x.id,x]));state.alchRows=V03.alchemyRows(mapping,latest,h,five,day);state.loadedAt=Date.now();evaluateAlerts();if(user.alerts.some(a=>a.metric==='change24'))void ensureWatchHistory();
  }catch(e){state.error=e.message;toast('Market feed error: '+e.message);}finally{state.busy=false;status();renderPage();}}
 function stamp(age){if(!Number.isFinite(age))return 'Unknown';if(age<60)return Math.round(age)+'m ago';if(age<1440)return Math.round(age/60)+'h ago';return Math.round(age/1440)+'d ago';}
 function rowsTable(rows,limit=30){if(!rows.length)return empty('No matching items','Try resetting filters or refreshing the public market feed.');return `<div class="table-wrap"><table class="table"><thead><tr><th>Item</th><th>Buy target</th><th>Sell target</th><th>Tax</th><th>Net / ea</th><th>ROI</th><th>1h volume</th><th>Freshness</th><th>Risk</th><th>★</th></tr></thead><tbody>${rows.slice(0,limit).map(x=>{const watched=user.watchlist.includes(x.id);return `<tr data-open="${x.id}"><td class="name">${esc(x.name)}<div class="sub">${esc(x.category)} · Limit ${esc(x.limit??'unknown')}</div></td><td>${compact(x.buy)}</td><td>${compact(x.sell)}</td><td>${compact(x.tax)}</td><td class="${x.net>0?'positive':'negative'}">${compact(x.net)}</td><td class="${x.roi>0?'positive':'negative'}">${pct(x.roi)}</td><td>${compact(x.v1)}</td><td>${stamp(x.age)}</td><td><span class="tag ${x.score>=70?'good':x.score>=45?'warn':'bad'}">${x.score}/100</span></td><td><button class="star ${watched?'on':''}" data-watch="${x.id}" aria-label="${watched?'Remove from':'Add to'} watchlist">${watched?'★':'☆'}</button></td></tr>`;}).join('')}</tbody></table></div><div class="footer-note">Showing ${Math.min(limit,rows.length).toLocaleString()} of ${rows.length.toLocaleString()} results. Buy and sell targets are <strong>recent transaction observations, not guaranteed fill prices</strong>.</div>`;}
@@ -103,8 +105,9 @@ function renderIntel(){
   '<p class="smallnote">Price ranges represent interval averages, not individual trade extremes. Wiki history has no standing order-book depth.</p></div>'+
   '<div class="card"><div class="section-heading"><h3>Trade action</h3></div><p class="smallnote">Log actual fill prices to calculate realized profits.</p><button class="action" id="newTrade">+ Record a flip</button>'+
   '<div class="divider-x"></div><p class="smallnote">'+esc(m.examine||'Details supplied by the public OSRS Wiki mapping.')+'</p></div></div>';
- $('#intelPage').innerHTML=head('OSRS Pump / Item Intelligence','Item market analysis','Public trade history and price/volume inspection.',buttons)+header+stats+section+intervalMetrics+analysis;
- $('#intelWatch').addEventListener('click',()=>{toggleWatch(m.id);renderIntel();});
+ $('#intelPage').innerHTML=head('OSRS Pump / Item Intelligence','Item market analysis','Public trade history and price/volume inspection.',buttons)+header+stats+section+intervalMetrics+(x?sizingCard(x,user.tradingGp):'')+analysis;
+ const sizeForm=$('#sizerForm');if(sizeForm)sizeForm.addEventListener('submit',e=>{e.preventDefault();const amount=Number(new FormData(sizeForm).get('available'));if(!Number.isFinite(amount)||amount<0||!Number.isSafeInteger(Math.floor(amount))){toast('Enter a valid GP amount');return;}user.tradingGp=Math.floor(amount);save();renderIntel();});
+  $('#intelWatch').addEventListener('click',()=>{toggleWatch(m.id);renderIntel();});
  $('#newTrade').addEventListener('click',()=>nav('portfolio'));
  for(const b of document.querySelectorAll('#intelPage [data-chart-window]')){
   b.addEventListener('click',()=>{if(user.historyWindow===b.dataset.chartWindow)return;user.historyWindow=b.dataset.chartWindow;save();loadHistory();});
