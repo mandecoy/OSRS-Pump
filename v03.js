@@ -206,7 +206,10 @@ export function markets(ctx){
  if(info&&cat==='processing'){return '<div class="pump-back"><button data-v3-back="1">← Markets</button></div>'+title('Processing calculator','Calculate an item conversion using actual ingredient quantities.')+'<button class="pump-gold" data-go="money">Open Money Making Lab →</button>';}
  if(info){
  const items=cat==='alch'?(ctx.alchRows||[]):categoryRows(all,cat);
- const selected=applyFilters(items,{...(ctx.user.v3Filter||DEFAULT_FILTER),sort:cat==='alch'?'net':(ctx.user.v3Filter?.sort||DEFAULT_FILTER.sort),search:''});
+ const f=ctx.user.v3Filter||DEFAULT_FILTER;
+ const sorts={rising:'change',falling:'change',gainers:'dayGapGp',losers:'dayGapGp',margins:'net',roi:'roi',fast:'v1',lowcash:'roi',expensive:'net',volume5:'volume5',volume1:'volume1',volume24:'volume24',quiet:'v1',alch:'net'};
+ const autoSort=f.sort==='score';
+ const selected=applyFilters(items,{...f,sort:autoSort?(sorts[cat]||'score'):f.sort,direction:autoSort&&['falling','losers','quiet'].includes(cat)?'asc':f.direction,search:''});
  return '<div class="pump-back"><button data-v3-back="1">← All markets</button></div>'
  +title(info.icon+' '+info.label,info.detail)
  +'<p class="pump-caveat">This is a data-driven category. Trade volume measures past filled items, not order-book depth.</p>'
