@@ -110,3 +110,48 @@ export function journalMetrics(trades,itemsById={}){
   }
   return {spent,proceeds,realized,locked,unrealized,open};
 }
+
+/** Budget-limited theoretical flip. A missing GE limit is never treated as unlimited. */
+export function tradeSize(budget,buyPrice,sellPrice,itemName='',limit=null) {
+  const budgetGp=Number(budget), buy=Number(buyPrice), sell=Number(sellPrice);
+  if(!Number.isFinite(budgetGp)||budgetGp<0||!Number.isFinite(buy)||buy<=0||!Number.isFinite(sell)||sell<=0)return null;
+  const affordable=Math.min(Number.MAX_SAFE_INTEGER,Math.floor(budgetGp/buy));
+  const cap=limit!==null&&limit!==undefined&&Number.isFinite(Number(limit))&&Number(limit)>0?Math.floor(Number(limit)):null;
+  const quantity=cap===null?affordable:Math.min(affordable,cap);
+  const taxEach=geTax(sell,itemName);
+  const profitEach=sell-buy-taxEach;
+  return {budget:budgetGp,affordable,limit:cap,quantity,buy,sell,taxEach,profitEach,
+    spend:quantity*buy,proceeds:quantity*(sell-taxEach),profit:quantity*profitEach,
+    unused:budgetGp-quantity*buy,limitKnown:cap!==null};
+}
+
+/** High/low are MIN/MAX sampled interval averages, not actual intraday tick extrema. */
+export function historical24h(points,now=Date.now()) {
+  const end=now/1000;
+  const rows=(Array.isArray(points)?points:[]).filter(p=>{
+    const t=Number(p.timestamp);
+    return Number.isFinite(t)&&t>=end-86400&&t<=end+300&&Number(p.avgLowPrice)>0&&Number(p.avgHighPrice)>0;
+  }).sort((a,b)=>Number(a.timestamp)-Number(b.timestamp));
+  if(!rows.length)return {low:null,high:null,changePct:null,samples:0,updatedAt:null};
+  const midpoint=p=>(Number(p.avgLowPrice)+Number(p.avgHighPrice))/2;
+  const first=midpoint(rows[0]),last=midpoint(rows.at(-1));
+  return {low:Math.min(...rows.map(p=>Number(p.avgLowPrice))),
+    high:Math.max(...rows.map(p=>Number(p.avgHighPrice))),
+    changePct:rows.length>=2&&first>0?(last-first)/first*100:null,
+    samples:rows.length,updatedAt:Number(rows.at(-1).timestamp)};
+}
+
+/** Transparent heuristics based on completed-trade data, not execution guarantees. */
+export function riskSignals(r) {
+  if(!r)return {level:'unknown',flags:['No current quotes']};
+  const flags=[];
+  if(!Number.isFinite(Number(r.age))||Number(r.age)>180)flags.push('Stale quotes');
+  else if(Number(r.age)>60)flags.push('Older quotes');
+  if(!Number.isFinite(Number(r.v1))||Number(r.v1)<20)flags.push('Low 1h volume');
+  if(r.dayVol!==null&&r.dayVol!==undefined&&Number(r.dayVol)<100)flags.push('Low 24h volume');
+  if(Number(r.roi)>0.25||(Number(r.sell)>0&&Number(r.buy)>0&&(Number(r.sell)-Number(r.buy))/Number(r.buy)>0.3))
+    flags.push('Unusual margin');
+  if(Number(r.net)<=0)flags.push('No after-tax profit');
+  const severe=flags.some(x=>['Stale quotes','Unusual margin','No after-tax profit'].includes(x));
+  return {level:severe?'high':flags.length?'caution':'normal',flags};
+}
