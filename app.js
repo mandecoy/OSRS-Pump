@@ -141,13 +141,88 @@ function renderPortfolio(){const m=journalMetrics(user.trades,state.byId),select
  $('#tradeForm').addEventListener('submit',e=>{e.preventDefault();const d=Object.fromEntries(new FormData(e.currentTarget));const found=resolveItemName(d.itemName),id=Number(found?.id),qty=Math.floor(Number(d.qty)),soldQty=Math.floor(Number(d.soldQty)),buyPrice=Math.floor(Number(d.buyPrice)),sellPrice=Math.floor(Number(d.sellPrice));if(!found||!(qty>0)||soldQty<0||soldQty>qty||!(buyPrice>0)||(soldQty>0&&!(sellPrice>0))){toast('Choose an item name, positive buy price and valid purchased/sold quantities.');return;}
  user.trades.push({tradeId:makeId(),id,name:found.name,qty,soldQty,buyPrice,sellPrice:soldQty?sellPrice:0,notes:String(d.notes||'').slice(0,250),when:Date.now()});save();toast('Trade saved on this device');renderPortfolio();});}
 function toggleWatch(id){id=Number(id);const at=user.watchlist.indexOf(id);if(at<0)user.watchlist.push(id);else user.watchlist.splice(at,1);save();toast(at<0?'Item added to watchlist':'Item removed from watchlist');}
-function evaluateAlerts(){let n=0;for(const a of user.alerts){const x=item(a.itemId);if(!x)continue;const price=a.side==='buy'?x.buy:x.sell,hit=a.rule==='above'?price>=a.target:price<=a.target;if(hit&&!a.triggered){a.triggered=true;n++;if(typeof Notification!=='undefined'&&Notification.permission==='granted')new Notification('OSRS Pump price alert',{body:`${x.name}: ${gp(price)} (${a.rule} ${gp(a.target)})`});}else if(!hit)a.triggered=false;}
- if(n){toast(`${n} price alert${n===1?'':'s'} triggered`);save();}}
-function renderWatchlist(){const watched=user.watchlist.map(id=>item(id)||lookup(id)).filter(Boolean),alertRows=user.alerts.map(a=>({...a,m:lookup(a.itemId),x:item(a.itemId)}));$('#watchlistPage').innerHTML=head('OSRS Pump / Signals','Watchlist & Price Alerts','Monitor favorite items and create local price-crossing rules.')+
- `${notice('<strong>Foreground-only alerts in this starter:</strong> alerts are evaluated on refresh while the app is open. Browser notifications require permission. Reliable Android background push notifications require a later native service.')}`+
- `<div class="alert-grid"><div class="card"><div class="section-heading"><h3>My watched items</h3><span class="tag">${watched.length}</span></div>${watched.length?watched.map(x=>`<div class="item-row"><div><strong>${esc(x.name)}</strong><small>${gp(x.buy)} bid target · ${gp(x.sell)} ask target</small></div><div class="gap8"><button class="action secondary minor" data-open="${x.id}">Inspect</button><button class="button-link danger" data-watch="${x.id}">Remove</button></div></div>`).join(''):empty('Watchlist is empty','Star an item from the screener or dashboard.')}</div><div class="card"><div class="section-heading"><h3>New threshold alert</h3></div><form id="alertForm"><div class="grid-controls" style="grid-template-columns:1fr 1fr">${namePicker('alertItem')}<div class="field"><label for="f-side">Observed price</label><select id="f-side" name="side"><option value="buy">Instant-sell (low)</option><option value="sell">Instant-buy (high)</option></select></div><div class="field"><label for="f-rule">Trigger when</label><select id="f-rule" name="rule"><option value="below">At or below</option><option value="above">At or above</option></select></div>${field('Threshold (gp)','target','','Enter target')}</div><div class="filter-footer"><span class="smallnote">Price rule only — no trade automation.</span><button class="action" type="submit">Add alert</button></div></form><div class="divider-x"></div><div class="section-heading"><h3>Active rules</h3><span class="tag">${alertRows.length}</span></div>${alertRows.length?alertRows.map(a=>`<div class="item-row"><div><strong>${esc(a.m?.name||'Unknown item')}</strong><small>${a.side==='buy'?'Instant-sell':'Instant-buy'} ${a.rule} ${gp(a.target)} · ${a.triggered?'Triggered':'Armed'}</small></div><button class="button-link danger" data-delete-alert="${esc(a.alertId)}">Delete</button></div>`).join(''):empty('No active alerts','Create your first price threshold above.')}</div></div>`;
+
+function evaluateAlerts(){
+ let n=0,changed=false;
+ for(const a of user.alerts){
+  const value=alertValue(a,item(a.itemId),state.watchHistory[a.itemId]);
+  if(value===null||!Number.isFinite(value))continue;
+  const hit=a.rule==='above'?value>=Number(a.target):value<=Number(a.target);
+  if(hit&&!a.triggered){
+   a.triggered=true;changed=true;n++;
+   if(typeof Notification!=='undefined'&&Notification.permission==='granted'){
+    try{new Notification('OSRS Pump market alert',{body:(item(a.itemId)?.name||'Item')+': '+alertDisplay(a)});}catch{}
+   }
+  }else if(!hit&&a.triggered){a.triggered=false;changed=true;}
+ }
+ if(changed)save();
+ if(n)toast(n+' market alert'+(n===1?'':'s')+' triggered');
+}
+async function ensureWatchHistory(){
+ if(!state.mapping.length)return;
+ const seen=user.page==='watchlist'?user.watchlist.slice(0,user.watchLimit||10):[];
+ const alerts=user.alerts.filter(a=>a.metric==='change24').map(a=>Number(a.itemId));
+ const ids=[...new Set([...seen,...alerts].map(Number).filter(Number.isSafeInteger))];
+ const needed=ids.filter(id=>!state.historyLoading.has(id)&&(!state.watchHistory[id]||Date.now()-state.watchHistory[id].when>10*60_000));
+ for(let i=0;i<needed.length;i+=3){
+  await Promise.all(needed.slice(i,i+3).map(async id=>{
+   if(state.historyLoading.has(id))return;
+   state.historyLoading.add(id);
+   try{
+    const result=await fetchJson('timeseries?id='+id+'&step=5m');
+    state.watchHistory[id]={summary:historical24h(result.data),when:Date.now()};
+   }catch(error){
+    state.watchHistory[id]={summary:null,error:String(error.message||error),when:Date.now()};
+   }finally{state.historyLoading.delete(id);}
+  }));
+  if(user.page==='watchlist')renderWatchlist();
+  evaluateAlerts();
+ }
+}
+function renderWatchlist(){
+ const watched=user.watchlist.slice(0,user.watchLimit||10).map(id=>item(id)||lookup(id)).filter(Boolean);
+ const alertRows=user.alerts.map(a=>({...a,m:lookup(a.itemId)}));
+ const options=Object.entries(ALERT_METRICS).map(([id,label])=>'<option value="'+id+'">'+esc(label)+'</option>').join('');
+ $('#watchlistPage').innerHTML=head('OSRS Pump / Signals','Watchlist & Market Alerts','Follow 24h price ranges, trade volume, potential profit and configurable alerts.')+
+ notice('<strong>Foreground alerts:</strong> signals are checked on price refresh while the app runs. Browser notifications need your permission; reliable Android background pushes require a native service. Historical percentage changes are sampled midpoint changes, not guaranteed returns.')+
+ '<div class="card" style="margin-bottom:16px"><div class="section-heading"><h3>Your GP for potential flips</h3></div>'+
+ '<form id="watchBudgetForm" class="form-inline"><div class="field"><label for="watchBudgetGp">Available GP</label><input id="watchBudgetGp" type="number" name="available" inputmode="numeric" step="1" min="0" value="'+esc(Math.floor(user.tradingGp??1000000))+'"></div>'+
+ '<button type="submit" class="action">Update estimates</button></form></div>'+
+ '<div class="alert-grid"><div class="card"><div class="section-heading"><h3>My watched items</h3><span class="tag">'+user.watchlist.length+'</span></div>'+
+ (watched.length?watched.map(x=>watchCard(x,state.watchHistory[x.id],user.tradingGp)).join(''):empty('Your watchlist is empty','Star an item in Markets or the Flip Finder.'))+
+ (user.watchlist.length>(user.watchLimit||10)?'<button class="pump-more" id="watchMore">Load 10 more ('+(user.watchlist.length-(user.watchLimit||10))+' remaining)</button>':'')+
+ '</div><div class="card"><div class="section-heading"><h3>Custom market alert</h3></div>'+
+ '<form id="alertForm"><div class="grid-controls" style="grid-template-columns:1fr 1fr">'+namePicker('alertItem')+
+ '<div class="field"><label for="alertMetric">Track metric</label><select id="alertMetric" name="metric">'+options+'</select></div>'+
+ '<div class="field"><label for="f-rule">Trigger when</label><select id="f-rule" name="rule"><option value="below">At or below</option><option value="above">At or above</option></select></div>'+
+ '<div class="field"><label for="alertTarget">Threshold (GP, units or %)</label><input id="alertTarget" type="number" step="any" name="target" placeholder="Alert value" required></div>'+
+ '</div><div class="filter-footer"><span class="smallnote">Prices, after-tax margin, 24h volume or sampled 24h change. No automatic trades.</span><button type="submit" class="action">Save alert</button></div></form>'+
+ '<div class="gap8" style="margin-top:11px"><button type="button" id="enablePumpNotifications" class="action secondary minor">Enable notifications</button></div>'+
+ '<div class="divider-x"></div><div class="section-heading"><h3>Saved alerts</h3><span class="tag">'+alertRows.length+'</span></div>'+
+ (alertRows.length?alertRows.map(a=>'<div class="item-row"><div><strong>'+esc(a.m?.name||'Unknown item')+'</strong><small>'+esc(alertDisplay(a))+' · '+(a.triggered?'Triggered':'Armed')+'</small></div>'+
+ '<button class="button-link danger" data-delete-alert="'+esc(a.alertId)+'">Delete</button></div>').join(''):empty('No active alerts','Choose an item and add a threshold above.'))+
+ '</div></div>';
  wireNamePicker('alertItem');
- $('#alertForm').addEventListener('submit',e=>{e.preventDefault();const d=Object.fromEntries(new FormData(e.currentTarget)),found=resolveItemName(d.itemName),id=Number(found?.id),target=Number(d.target);if(!found||!(target>0)){toast('Choose a known item name and enter a positive alert target');return;}user.alerts.push({alertId:makeId(),itemId:id,side:d.side,rule:d.rule,target,triggered:false});save();renderWatchlist();toast('Alert saved locally');});}
+ $('#watchBudgetForm').addEventListener('submit',e=>{
+  e.preventDefault();const amount=Number(new FormData(e.currentTarget).get('available'));
+  if(!Number.isFinite(amount)||amount<0||!Number.isSafeInteger(Math.floor(amount))){toast('Enter a valid GP budget');return;}
+  user.tradingGp=Math.floor(amount);save();renderWatchlist();
+ });
+ $('#alertForm').addEventListener('submit',e=>{
+  e.preventDefault();const d=Object.fromEntries(new FormData(e.currentTarget));
+  const found=resolveItemName(d.itemName),id=Number(found?.id),target=Number(d.target);
+  const valid=(d.metric==='change24'||d.metric==='net')?Number.isFinite(target):Number.isFinite(target)&&target>0;
+  if(!found||!Object.hasOwn(ALERT_METRICS,d.metric)||!valid){toast('Choose an item, metric and valid threshold');return;}
+  user.alerts.push({alertId:makeId(),itemId:id,metric:d.metric,rule:d.rule==='above'?'above':'below',target,triggered:false});
+  save();renderWatchlist();void ensureWatchHistory();evaluateAlerts();toast('Market alert saved');
+ });
+ $('#enablePumpNotifications').addEventListener('click',async()=>{
+  if(typeof Notification==='undefined'||!Notification.requestPermission){toast('Notifications unsupported in this environment');return;}
+  try{const permission=await Notification.requestPermission();toast(permission==='granted'?'Notifications enabled':'Permission: '+permission);}catch{toast('Notification permission unavailable');}
+ });
+ const more=$('#watchMore');
+ if(more)more.addEventListener('click',()=>{user.watchLimit=(user.watchLimit||10)+10;save();renderWatchlist();void ensureWatchHistory();});
+}
 function renderMoney(){const natureId=state.mapping.find(x=>x.name.toLowerCase()==='nature rune')?.id,nature=Number((state.latest?.data||state.latest||{})[natureId]?.high)||0;
  const alch=state.alchRows,visible=alch.slice(0,user.alchLimit||10);
  const p=user.process,profit=(Number(p.output)||0)*(Number(p.outputQty)||0)*(1-.02)-(Number(p.input)||0)*(Number(p.inputQty)||0),perHour=profit*(Number(p.actionsPerHour)||0);
