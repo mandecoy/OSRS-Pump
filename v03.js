@@ -1,4 +1,5 @@
 /* OSRS Pump v0.3 mobile market views. Only public Wiki market observations. */
+import {riskSignals} from './logic.js';
 const $=s=>document.querySelector(s);
 const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money=x=>!Number.isFinite(Number(x))?'—':Math.round(Number(x)).toLocaleString('en-US');
@@ -133,12 +134,13 @@ function pic(r){if(!r.icon)return '<span class="pump-item-fallback">◈</span>';
 function title(t,sub){return '<div class="pump-section-title"><h2>'+esc(t)+'</h2><p>'+esc(sub||'')+'</p></div>';}
 function row(r,ctx){
  const age=Number.isFinite(r.age)?Math.round(r.age)+'m':'Unknown',watched=ctx.user.watchlist.includes(r.id);
- const bad=r.age>180||r.v1<20,net=r.net||0;
+ const signals=riskSignals(r),bad=signals.level==='high',net=r.net||0;
  const subtitle=r.alchMode
   ?'<small>Buy '+short(r.buy)+' · High Alch '+short(r.highalch)+' · Rune '+short(r.natureCost)+'</small>'
   :'<small>Entry '+short(r.buy)+' · Exit '+short(r.sell)+' gp</small>';
  const units='<small>24h volume '+(r.dayVol===null||r.dayVol===undefined?'—':short(r.dayVol))+' · 1h '+short(r.v1)+' · Age '+age+'</small>';
- return '<article class="pump-item-card '+(bad?'pump-muted':'')+'"><button class="pump-item-main" data-open="'+r.id+'"><span class="pump-sprite">'+pic(r)+'</span><span class="pump-item-summary"><strong>'+esc(r.name)+'</strong>'+subtitle+units+'</span><span class="pump-gain '+(net>0?'pump-up':'pump-down')+'">'+(net>0?'+':'')+short(net)+'<small>'+(r.alchMode?'gp / alch':'gp / ea after tax')+'</small><small>'+((r.roi||0)*100).toFixed(1)+'% ROI</small></span></button><button class="pump-star" data-watch="'+r.id+'" aria-label="'+(watched?'Remove from':'Add to')+' watchlist">'+(watched?'★':'☆')+'</button></article>';
+ const indicator='<span class="pump-risk pump-risk-'+signals.level+'" title="'+esc(signals.flags.join(' · ')||'No major flags in this data snapshot')+'">'+(signals.flags.length?'⚠ '+esc(signals.flags.slice(0,2).join(' · ')):'✓ No major flags')+'</span>';
+ return '<article class="pump-item-card '+(bad?'pump-muted':'')+'"><button class="pump-item-main" data-open="'+r.id+'"><span class="pump-sprite">'+pic(r)+'</span><span class="pump-item-summary"><strong>'+esc(r.name)+'</strong>'+subtitle+units+indicator+'</span><span class="pump-gain '+(net>0?'pump-up':'pump-down')+'">'+(net>0?'+':'')+short(net)+'<small>'+(r.alchMode?'gp / alch':'gp / ea after tax')+'</small><small>'+((r.roi||0)*100).toFixed(1)+'% ROI</small></span></button><button class="pump-star" data-watch="'+r.id+'" aria-label="'+(watched?'Remove from':'Add to')+' watchlist">'+(watched?'★':'☆')+'</button></article>';
 }
 function list(rows,ctx,limit=10){return rows.length?rows.slice(0,limit).map(r=>row(r,ctx)).join(''):'<div class="pump-empty">No matching items. Try a wider price range, higher trade age, or fewer volume restrictions.</div>';}
 function filtersModal(ctx){
