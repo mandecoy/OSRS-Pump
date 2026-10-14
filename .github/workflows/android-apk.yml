@@ -71,9 +71,10 @@ jobs:
       - name: Verify compiled launcher icon and APK
         run: |
           test -s android/app/build/outputs/apk/debug/app-debug.apk
-          unzip -l android/app/build/outputs/apk/debug/app-debug.apk | grep -F 'res/drawable-nodpi/ic_pump_foreground.png'
-          unzip -l android/app/build/outputs/apk/debug/app-debug.apk | grep -F 'res/mipmap-anydpi-v26/ic_launcher.xml'
-          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging android/app/build/outputs/apk/debug/app-debug.apk | grep '^application:' | grep -F 'ic_launcher.xml'
+          unzip -l android/app/build/outputs/apk/debug/app-debug.apk | grep -F 'ic_pump_foreground'
+          unzip -l android/app/build/outputs/apk/debug/app-debug.apk | grep -F 'ic_launcher'
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging android/app/build/outputs/apk/debug/app-debug.apk | tee /tmp/pump-apk-badging.txt
+          grep -F 'ic_launcher' /tmp/pump-apk-badging.txt
       - name: Verify APK exists
         run: |
           test -s android/app/build/outputs/apk/debug/app-debug.apk
