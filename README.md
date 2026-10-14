@@ -2,7 +2,7 @@
 
 **Free, open-source, local-first Grand Exchange market intelligence for Old School RuneScape.**
 
-> Status: **Android v0.3.0-beta.1 is available**, featuring a themed mobile market dashboard, Markets discovery categories and advanced filter drawer. Background Android notifications and order-book analytics are not implemented. Beta APKs are debug-signed and may require reinstalling for future updates.
+> Status: **Android v0.3.1-beta.1 source updates submitted for an automated APK build**, featuring a themed mobile market dashboard, Markets discovery categories and advanced filter drawer. Background Android notifications and order-book analytics are not implemented. Beta APKs are debug-signed and may require reinstalling for future updates.
 
 OSRS Pump is an independent community project. Not affiliated with or endorsed by Jagex or the OSRS Wiki. Old School RuneScape and RuneScape are trademarks of their respective owners.
 
@@ -12,7 +12,7 @@ The [v0.3 product blueprint](docs/v0.3/README.md) includes all four requested de
 
 ## Android APK (Beta)
 
-**[Download OSRS Pump v0.3.0-beta.1 APK](https://github.com/mandecoy/OSRS-Pump/releases/download/v0.3.0-beta.1/OSRS-Pump-v0.3.0-beta.1.apk)** — or browse the [release page](https://github.com/mandecoy/OSRS-Pump/releases/tag/v0.3.0-beta.1).
+**[OSRS Pump Android releases](https://github.com/mandecoy/OSRS-Pump/releases)** — choose v0.3.1-beta.1 after its GitHub Actions build publishes the APK. The prior [v0.3.0-beta.1 release](https://github.com/mandecoy/OSRS-Pump/releases/tag/v0.3.0-beta.1) remains available.
 
 This APK runs the local app UI inside an Android WebView. Native Java code fetches public Wiki prices using an identifiable User-Agent with short-lived caching; it does **not** require running Node.js on the phone. Portfolio, trade journal, watchlists and alert rules remain stored on your device. Export a JSON backup before uninstalling or upgrading beta builds.
 
@@ -23,6 +23,17 @@ The APK currently evaluates price alerts **only while open**; it does not provid
 ### Building another APK
 
 The [Android APK GitHub Actions workflow](.github/workflows/android-apk.yml) packages the web assets, verifies the Node.js tests, compiles the Android app with Gradle and uploads the compiled APK as a build artifact. It creates the initial tagged beta GitHub release once. To build newer versions, increment the app version, package name/versionCode as needed and create a new release tag and asset. For stable upgradable releases, use a securely stored permanent release-signing key (never commit it).
+
+### Changes in v0.3.1 Beta 1
+
+- Category filters no longer silently impose a three-hour age cutoff or positive-margin restriction on unrelated views.
+- Market subcategories and Flip Finder start with **10 results** and load **10 more** per tap.
+- High Margin and High ROI discovery includes all observed positive margins without arbitrary fixed volume/age exclusion, with user-selected filters still available.
+- High Alchemy scans every mapped item with a current instant-buy trade, even when no instant-sell trade exists. Estimated profit = high-alch coins - last instant-buy price - current nature rune instant-buy price; **no GE selling tax applies to the alch spell**.
+- Individual Home/Markets/Flip Finder item cards show available **24-hour traded-unit volume**, plus hourly volume, freshness and after-tax GE flip estimates.
+- Watchlist alerts and portfolio trades accept item names through a searchable dropdown, retaining numeric IDs only as internal identifiers.
+- Added filter/alchemy regression tests. Prices are observed trades rather than guaranteed buy/sell offers.
+- This source revision is not a claim of successful APK publication or physical-device testing; verify the GitHub release before installing.
 
 ### What's new in v0.3.0-beta.1
 
