@@ -65,21 +65,21 @@ jobs:
       - name: Verify APK exists
         run: |
           test -s android/app/build/outputs/apk/debug/app-debug.apk
-          cp android/app/build/outputs/apk/debug/app-debug.apk OSRS-Pump-v0.3.0-beta.1.apk
-          sha256sum OSRS-Pump-v0.3.0-beta.1.apk
+          cp android/app/build/outputs/apk/debug/app-debug.apk OSRS-Pump-v0.3.1-beta.1.apk
+          sha256sum OSRS-Pump-v0.3.1-beta.1.apk
       - uses: actions/upload-artifact@v4
         with:
-          name: OSRS-Pump-Android-beta-APK
-          path: OSRS-Pump-v0.3.0-beta.1.apk
+          name: OSRS-Pump-Android-v0.3.1-beta.1
+          path: OSRS-Pump-v0.3.1-beta.1.apk
           retention-days: 30
       - name: Publish downloadable GitHub beta release
         if: github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if ! gh release view v0.3.0-beta.1 >/dev/null 2>&1; then
-            gh release create v0.3.0-beta.1 OSRS-Pump-v0.3.0-beta.1.apk \
+          if ! gh release view v0.3.1-beta.1 >/dev/null 2>&1; then
+            gh release create v0.3.1-beta.1 OSRS-Pump-v0.3.1-beta.1.apk \
               --prerelease \
-              --title "OSRS Pump Android v0.3.0 beta 1" \
-              --notes "Redesigned Android beta. Includes native same-origin OSRS Wiki API proxy, local trade journal, watchlists, flipping analysis and money-making calculators. Alerts evaluate only while the app is open. Debug-signed early-access build: future updates may require reinstalling; export your trades first."
+              --title "OSRS Pump Android v0.3.1 beta 1" \
+              --notes "Fixes sparse Markets categories, broken default filters and 10-item Load More pagination; shows 24h item volumes, searchable item names in watchlist alerts and trade journal, and expanded High Alchemy sourced across all eligible mapping items. GE flip profits remain after-tax. Alerts evaluate only while the app is open. Debug-signed: back up your trades before any reinstall."
           fi
