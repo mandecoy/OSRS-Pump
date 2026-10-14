@@ -28,3 +28,33 @@ test('alchemy includes items without low trade, costs nature rune and does not c
  assert.equal(result[0].net,400);assert.equal(result[0].natureCost,100);
  assert.equal(result[0].dayVol,135);assert.equal(result[0].alchMode,true);
 });
+
+import {tradeSize,historical24h,riskSignals} from '../logic.js';
+test('trade size respects cash, 4h limit, floor tax and 5m GE tax cap',()=>{
+ const x=tradeSize(5000,1000,1200,'Abyssal whip',3);
+ assert.equal(x.affordable,5);assert.equal(x.quantity,3);assert.equal(x.taxEach,24);
+ assert.equal(x.profit,528);assert.equal(x.spend,3000);assert.equal(x.unused,2000);
+ const y=tradeSize(2_000_000_000,100_000_000,500_000_000,'Twisted bow',2);
+ assert.equal(y.taxEach,5_000_000);assert.equal(y.quantity,2);
+ assert.equal(tradeSize(2000,1000,1200,'Old school bond',null).taxEach,0);
+ assert.equal(tradeSize(200,0,100),null);
+ assert.equal(tradeSize(-1,100,120),null);
+ assert.equal(tradeSize(1000,100,120,'Test').limitKnown,false);
+});
+test('sampled 24h lows/highs and midpoint percentage change use time cutoff',()=>{
+ const now=1_800_000_000_000, sec=now/1000;
+ const h=historical24h([
+ {timestamp:sec-90000,avgLowPrice:1,avgHighPrice:2},
+ {timestamp:sec-3600,avgLowPrice:100,avgHighPrice:120},
+ {timestamp:sec-100,avgLowPrice:130,avgHighPrice:150}
+ ],now);
+ assert.equal(h.samples,2);assert.equal(h.low,100);assert.equal(h.high,150);
+ assert.ok(Math.abs(h.changePct-(140/110-1)*100)<1e-9);
+ assert.equal(historical24h([],now).changePct,null);
+});
+test('reliability flags identify stale, thin and unusual flips',()=>{
+ const r={age:250,v1:5,dayVol:50,roi:.4,buy:100,sell:145,net:38};
+ const flags=riskSignals(r);assert.equal(flags.level,'high');
+ assert.ok(flags.flags.includes('Stale quotes'));assert.ok(flags.flags.includes('Unusual margin'));
+ assert.equal(riskSignals({age:10,v1:100,dayVol:1000,roi:.04,buy:100,sell:106,net:4}).level,'normal');
+});
