@@ -37,5 +37,5 @@ test('render chart includes GP labels, accessibility, and selectable cursor',()=
 test('invalid and missing values are not shown as zero GP',()=>{
  const html=detailsHTML({timestamp:now,avgHighPrice:null,avgLowPrice:100,highPriceVolume:null,lowPriceVolume:null},'day');
  assert.match(html,/—/);
- assert.doesNotMatch(html,/0 gp/);
+ assert.doesNotMatch(html,/>0 gp</);
 });
