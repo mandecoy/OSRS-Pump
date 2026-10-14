@@ -6,6 +6,7 @@ on:
       - 'android/**'
       - 'tests/**'
       - 'app.js'
+      - 'market-intel.js'
       - 'history-chart.js'
       - 'v03.js'
       - 'v03.css'
@@ -50,7 +51,7 @@ jobs:
         shell: bash
         run: |
           mkdir -p android/app/src/main/assets/web/icons
-          cp index.html app.js v03.js history-chart.js logic.js styles.css v03.css manifest.webmanifest android/app/src/main/assets/web/
+          cp index.html app.js v03.js market-intel.js history-chart.js logic.js styles.css v03.css manifest.webmanifest android/app/src/main/assets/web/
           cp icons/pump.svg android/app/src/main/assets/web/icons/
           python3 - <<'PY'
           from pathlib import Path
