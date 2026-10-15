@@ -125,7 +125,7 @@ export function init(getCtx){
  if(window.__pumpHomeReady)return;window.__pumpHomeReady=true;
  const render=()=>{const ctx=getCtx();ctx.save();if(ctx.user.page==='dashboard')ctx.renderPage();else if(ctx.user.page==='money')ctx.renderPage();};
  document.addEventListener('click',e=>{
-  const element=e.target.closest('[data-home-customize],[data-home-move],[data-home-hide],[data-home-save-budget],[data-home-rank],[data-home-load]');
+  const element=e.target.closest('[data-home-customize],[data-home-move],[data-home-hide],[data-home-save-budget],[data-home-rank],[data-home-load],[data-method-category]');
   if(!element)return;
   const ctx=getCtx(),u=ctx.user;
   if(element.dataset.homeCustomize!==undefined)u.homeCustomize=!u.homeCustomize;
@@ -139,7 +139,8 @@ export function init(getCtx){
    if(!Number.isFinite(n)||n<0){ctx.toast('Enter a nonnegative GP budget.');return;}
    u.tradingGp=Math.floor(n);
   }
-  if(element.dataset.homeRank)u.homeRank=element.dataset.homeRank;
+  if(element.dataset.methodCategory){u.processKind=element.dataset.methodCategory;u.processLimit=10;render();}
+ if(element.dataset.homeRank)u.homeRank=element.dataset.homeRank;
   if(element.dataset.homeLoad)u.homeLoad=Math.min(50,(u.homeLoad||5)+5);
   render();
  });

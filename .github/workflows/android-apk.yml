@@ -80,23 +80,23 @@ jobs:
       - name: Verify APK exists
         run: |
           test -s android/app/build/outputs/apk/debug/app-debug.apk
-          cp android/app/build/outputs/apk/debug/app-debug.apk OSRS-Pump-v0.4.0-beta.1.apk
-          sha256sum OSRS-Pump-v0.4.0-beta.1.apk
+          cp android/app/build/outputs/apk/debug/app-debug.apk OSRS-Pump-v0.4.1-beta.1.apk
+          sha256sum OSRS-Pump-v0.4.1-beta.1.apk
       - uses: actions/upload-artifact@v4
         with:
-          name: OSRS-Pump-Android-v0.4.0-beta.1
-          path: OSRS-Pump-v0.4.0-beta.1.apk
+          name: OSRS-Pump-Android-v0.4.1-beta.1
+          path: OSRS-Pump-v0.4.1-beta.1.apk
           retention-days: 30
       - name: Publish downloadable GitHub beta release
         if: github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if gh release view v0.4.0-beta.1 >/dev/null 2>&1; then
-            gh release upload v0.4.0-beta.1 OSRS-Pump-v0.4.0-beta.1.apk --clobber
+          if gh release view v0.4.1-beta.1 >/dev/null 2>&1; then
+            gh release upload v0.4.1-beta.1 OSRS-Pump-v0.4.1-beta.1.apk --clobber
           else
-            gh release create v0.4.0-beta.1 OSRS-Pump-v0.4.0-beta.1.apk \
+            gh release create v0.4.1-beta.1 OSRS-Pump-v0.4.1-beta.1.apk \
               --prerelease \
-              --title "OSRS Pump Android v0.4.0 beta 1" \
-              --notes "OSRS Pump v0.4.0: Android back gesture now returns to previous item, category or screen rather than exiting; Home dashboard now has eight configurable widgets including budget flips, market movers, trading tools and reliability alerts; Money Making now shows 30 public OSRS Wiki herb-cleaning and unfinished-potion processing recipes ranked by net GP, ROI or volume. Public Wiki prices only; no guaranteed fills. Debug-signed: export local portfolio before uninstalling older beta."
+              --title "OSRS Pump Android v0.4.1 beta 1" \
+              --notes "OSRS Pump v0.4.1: Money Making expands to eight processing categories including planks, smelting, smithing, set assembly, teleport tablets and jewellery. Live public Wiki quotes, per-item tax, skill levels, recipe fees, user GP budget, 10+ load-more, and official Jagex 7-day market-volume link. 24h and 7-day volume are not equivalent. Debug-signed: export trades before reinstalling."
           fi

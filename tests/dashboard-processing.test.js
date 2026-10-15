@@ -66,3 +66,30 @@ test('native Android back button uses SPA history and exit confirmation',()=>{
  assert.match(browser,/function goBack\(/);
  assert.match(browser,/routeStack\.pop\(\)/);
 });
+
+import {METHOD_CATEGORIES,ADDITIONAL_RECIPES,OFFICIAL_VOLUME_URL} from '../processing.js';
+test('additional recipe categories cover planks, smelting, smithing, sets, tablets, jewellery',()=>{
+ const expected=['Making planks','Smelting bars','Smithing products','Combining item sets','Teleport tablets','Jewellery crafting'];
+ for(const type of expected)assert.ok(ADDITIONAL_RECIPES.some(r=>r.kind===type),type);
+ assert.equal(new Set(METHOD_CATEGORIES.map(x=>x[0])).size,8);
+ assert.ok(OFFICIAL_VOLUME_URL.startsWith('https://secure.runescape.com/m=itemdb_oldschool'));
+});
+test('plank sawmill fee correctly added to input cost without double-tax',()=>{
+ const method=ADDITIONAL_RECIPES.find(x=>x.output==='Oak plank');
+ const t=Math.floor(Date.now()/1000);
+ const mapping=[{id:101,name:'Oak logs'},{id:102,name:'Oak plank'}];
+ const latest={data:{101:{high:60,highTime:t},102:{low:400,lowTime:t}}};
+ const result=recipeEvaluation(method,mapping,latest);
+ assert.equal(result.cost,310);assert.equal(result.afterTax,392);assert.equal(result.net,82);
+});
+test('15 nails output tax applies per item, not per batch',()=>{
+ const method=ADDITIONAL_RECIPES.find(x=>x.output==='Steel nails');
+ const t=Math.floor(Date.now()/1000);
+ const result=recipeEvaluation(method,[{id:1,name:'Steel bar'},{id:2,name:'Steel nails'}],{data:{1:{high:200,highTime:t},2:{low:100,lowTime:t}}});
+ assert.equal(result.afterTax,1470);assert.equal(result.net,1270);assert.equal(result.cost,200);
+});
+test('recipes with no public quote cannot invent profit or total cash',()=>{
+ const method=ADDITIONAL_RECIPES.find(x=>x.output==='Varrock teleport');
+ const result=recipeEvaluation(method,[],{data:{}});
+ assert.equal(result.net,null);assert.equal(result.complete,false);
+});

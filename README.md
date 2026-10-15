@@ -10,6 +10,13 @@ OSRS Pump is an independent community project. Not affiliated with or endorsed b
 
 The [v0.3 product blueprint](docs/v0.3/README.md) includes all four requested developer specifications: [screen-by-screen OSRS redesign](docs/v0.3/01-SCREENS.md), [prioritized feature backlog](docs/v0.3/02-BACKLOG.md), [UI/component architecture](docs/v0.3/03-COMPONENTS.md) and [advanced market filters/formulas](docs/v0.3/04-FILTERS-AND-FORMULAS.md). **The v0.3 beta implements its theme, Markets discovery categories, item cards and advanced filtering; more advanced analytics, specialty calculators and background notifications remain planned.**
 
+## v0.4.1 Beta 1 — More processing methods and official volume reference
+
+- Eight processing categories: herb cleaning, unfinished potions, plank-making, bar smelting, smithing nails, Grand Exchange armour sets, standard teleport tablets, and unenchanted jewellery crafting.
+- Recipe cards include total materials cost, processing fees, per-item sale tax, GP/action, ROI, 24-hour output trading volume, known four-hour GE input limits and Wiki links. Unknown quotes are shown as unavailable rather than fabricated.
+- The **24h volume** originates from the OSRS Wiki's real-time prices 24h feed. Jagex's [official Most Traded page](https://secure.runescape.com/m=itemdb_oldschool/top100?list=0) displays a **seven-day** range with daily min/max/median and seven-day totals. These represent different time ranges and are not directly interchangeable.
+- Standard rune/material recipes do not assume elemental staves, Blast Furnace reductions or fees waived. Smithing nails: 15 output per bar; planks: sawmill fee explicitly included.
+
 ## v0.4.0 Beta 1 — Home, Processing Methods and Back Navigation
 
 - **Android back gesture/button:** navigates through the app's own screen history, restores previous item/category and approximate scroll position, closes open filter sheets, and asks before exiting on Home.
