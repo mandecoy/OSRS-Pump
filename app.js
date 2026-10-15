@@ -3,14 +3,16 @@ import * as V03 from './v03.js';
 import {historical24h} from './logic.js';
 import {sizingCard,watchCard,alertValue,alertDisplay,ALERT_METRICS} from './market-intel.js';
 import * as HISTORY from './history-chart.js';
+import * as DASH from './dashboard.js';
+import * as PROC from './processing.js';
 const $=selector=>document.querySelector(selector);
 const names={dashboard:'Market Overview',markets:'Explore Markets',flips:'Advanced Flip Finder',intel:'Item Intelligence',portfolio:'Trade Portfolio',watchlist:'Watchlist & Alerts',money:'Money-Making Methods',settings:'Settings & Sources'};
 const KEY='osrs-pump-v1';
 const makeId=()=>globalThis.crypto?.randomUUID?.()||`local-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-const defaults={page:'dashboard',watchlist:[],alerts:[],trades:[],selected:4151,historyStep:'1h',historyWindow:'day',filter:{sort:'score',profitable:true,minScore:50},v3Filter:{...V03.DEFAULT_FILTER},v3Category:null,v3Limit:10,v3FilterRevision:2,alchLimit:10,process:{input:1000,output:1500,inputQty:1,outputQty:1,actionsPerHour:300},tradingGp:1000000,watchLimit:10};
+const defaults={page:'dashboard',watchlist:[],alerts:[],trades:[],selected:4151,historyStep:'1h',historyWindow:'day',filter:{sort:'score',profitable:true,minScore:50},v3Filter:{...V03.DEFAULT_FILTER},v3Category:null,v3Limit:10,v3FilterRevision:2,alchLimit:10,process:{input:1000,output:1500,inputQty:1,outputQty:1,actionsPerHour:300},tradingGp:1000000,watchLimit:10,homeWidgets:DASH.normalizedOrder(),homeHidden:[],homeRank:'net',homeLoad:5,homeCalcId:null,homeCustomize:false,processKind:'all',processSort:'net',processProfitable:false,processMinProfit:null,processRate:1200,processLimit:10};
 function loadLocal(){try{const x=JSON.parse(localStorage.getItem(KEY)||'{}');return {...defaults,...x,filter:{...defaults.filter,...x.filter},v3Filter:x.v3FilterRevision===2?{...V03.DEFAULT_FILTER,...x.v3Filter}:{...V03.DEFAULT_FILTER},v3Limit:10,v3FilterRevision:2};}catch{return {...defaults};}}
 const user=loadLocal();
-const state={mapping:[],latest:{},h:{},five:{},day:{},market:[],byId:{},history:[],historyId:null,historyStep:null,busy:false,error:null,loadedAt:0,alchRows:[],watchHistory:{},historyLoading:new Set()};
+const state={mapping:[],latest:{},h:{},five:{},day:{},market:[],byId:{},history:[],historyId:null,historyStep:null,busy:false,error:null,loadedAt:0,alchRows:[],watchHistory:{},historyLoading:new Set(),recipes:[]};
 const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const metric=(label,value,foot='',cls='')=>`<div class="card"><div class="stat-label">${esc(label)}</div><div class="stat-number ${cls}">${esc(value)}</div><div class="stat-foot">${esc(foot)}</div></div>`;
 const head=(eyebrow,title,description,action='')=>`<div class="heading"><div><div class="eyebrow">${esc(eyebrow)}</div><h2>${esc(title)}</h2><p>${esc(description)}</p></div>${action}</div>`;
@@ -18,20 +20,55 @@ const notice=s=>`<div class="info-bar">${s}</div>`;
 const empty=(t,d)=>`<div class="emptystate"><strong>${t}</strong>${d}</div>`;
 const field=(label,name,value='',placeholder='',type='number')=>`<div class="field"><label for="f-${esc(name)}">${esc(label)}</label><input id="f-${esc(name)}" name="${esc(name)}" type="${type}" value="${esc(value)}" placeholder="${esc(placeholder)}" ${type==='number'?'min="0"':''}></div>`;
 const titleLink=(id)=>`<a target="_blank" rel="noopener" href="https://prices.runescape.wiki/osrs/item/${id}">Wiki item prices ↗</a>`;
-function save(){localStorage.setItem(KEY,JSON.stringify({page:user.page,watchlist:user.watchlist,alerts:user.alerts,trades:user.trades,selected:user.selected,historyStep:user.historyStep,historyWindow:user.historyWindow,filter:user.filter,v3Filter:user.v3Filter,v3Category:user.v3Category,v3Limit:user.v3Limit,v3FilterRevision:user.v3FilterRevision,alchLimit:user.alchLimit,process:user.process,tradingGp:user.tradingGp,watchLimit:user.watchLimit}));}
+function save(){localStorage.setItem(KEY,JSON.stringify({page:user.page,watchlist:user.watchlist,alerts:user.alerts,trades:user.trades,selected:user.selected,historyStep:user.historyStep,historyWindow:user.historyWindow,filter:user.filter,v3Filter:user.v3Filter,v3Category:user.v3Category,v3Limit:user.v3Limit,v3FilterRevision:user.v3FilterRevision,alchLimit:user.alchLimit,process:user.process,tradingGp:user.tradingGp,watchLimit:user.watchLimit,homeWidgets:user.homeWidgets,homeHidden:user.homeHidden,homeRank:user.homeRank,homeLoad:user.homeLoad,homeCalcId:user.homeCalcId,processKind:user.processKind,processSort:user.processSort,processProfitable:user.processProfitable,processMinProfit:user.processMinProfit,processRate:user.processRate,processLimit:user.processLimit}));}
 let toastTimer;
 function toast(s){const el=$('#toast');el.textContent=s;el.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('show'),4000);}
 function item(id){return state.byId[Number(id)];}
 function lookup(id){return state.mapping.find(x=>Number(x.id)===Number(id));}
-function nav(page){if(!names[page])return;user.page=page;save();for(const el of document.querySelectorAll('.page'))el.hidden=el.id!==page+'Page';for(const b of document.querySelectorAll('[data-page]'))b.classList.toggle('active',b.dataset.page===page);$('#pageTitle').textContent=names[page];window.scrollTo({top:0,behavior:'auto'});renderPage();}
-function v3ctx(){return {rows:state.market,alchRows:state.alchRows,user,nav,save,toast,renderPage};}
-function renderPage(){switch(user.page){case 'dashboard':$('#dashboardPage').innerHTML=V03.home(v3ctx());return;case 'markets':$('#marketsPage').innerHTML=V03.markets(v3ctx());return;case 'flips':$('#flipsPage').innerHTML=V03.flips(v3ctx());return;case 'intel':return renderIntel();case 'portfolio':return renderPortfolio();case 'watchlist':renderWatchlist();void ensureWatchHistory();return;case 'money':return renderMoney();case 'settings':return renderSettings();}}
+// The Android WebView contains one HTML document. Internal screens need their own back stack.
+let displayedRoute=null;
+const routeStack=[];
+const sameRoute=(a,b)=>!!a&&!!b&&a.page===b.page&&a.category===b.category&&a.selected===b.selected;
+function nav(page,record=true){
+ if(!names[page])return;
+ const next={page,category:page==='markets'?(user.v3Category||null):null,selected:user.selected,scrollY:0};
+ if(record&&displayedRoute&&!sameRoute(displayedRoute,next)){
+   routeStack.push({...displayedRoute,scrollY:window.scrollY||0});
+   if(routeStack.length>80)routeStack.shift();
+ }
+ user.page=page;save();
+ for(const el of document.querySelectorAll('.page'))el.hidden=el.id!==page+'Page';
+ for(const b of document.querySelectorAll('[data-page]'))b.classList.toggle('active',b.dataset.page===page);
+ $('#pageTitle').textContent=names[page];
+ displayedRoute=next;
+ const back=$('#pumpBack');if(back)back.hidden=routeStack.length===0&&page==='dashboard';
+ if(record)window.scrollTo({top:0,behavior:'auto'});
+ renderPage();
+}
+function goBack(){
+ const filter=$('#pumpFilterSheet');
+ if(filter&&!filter.hidden){filter.hidden=true;document.body.classList.remove('pump-sheet-open');return true;}
+ if(user.homeCustomize&&user.page==='dashboard'){user.homeCustomize=false;renderPage();return true;}
+ const previous=routeStack.pop();
+ if(previous){
+  user.selected=previous.selected;
+  user.v3Category=previous.category;
+  nav(previous.page,false);
+  requestAnimationFrame(()=>window.scrollTo({top:previous.scrollY||0,behavior:'auto'}));
+  return true;
+ }
+ if(user.page!=='dashboard'){user.v3Category=null;nav('dashboard',false);return true;}
+ return false;
+}
+window.OSRSPumpNavigateBack=goBack;
+function v3ctx(){return {rows:state.market,alchRows:state.alchRows,recipes:state.recipes,mapping:state.mapping,latest:state.latest,day:state.day,user,nav,save,toast,renderPage};}
+function renderPage(){switch(user.page){case 'dashboard':$('#dashboardPage').innerHTML=DASH.home(v3ctx());return;case 'markets':$('#marketsPage').innerHTML=V03.markets(v3ctx());return;case 'flips':$('#flipsPage').innerHTML=V03.flips(v3ctx());return;case 'intel':return renderIntel();case 'portfolio':return renderPortfolio();case 'watchlist':renderWatchlist();void ensureWatchHistory();return;case 'money':return renderMoney();case 'settings':return renderSettings();}}
 function status(){const date=state.loadedAt?new Date(state.loadedAt).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):'Not synced';$('#lastSync').textContent=state.busy?'Syncing Wiki data…':date;$('#refresh').disabled=state.busy;}
 async function fetchJson(path){const res=await fetch('/api/'+path,{cache:'no-store'});const data=await res.json().catch(()=>({error:'Non-JSON response'}));if(!res.ok)throw new Error(data.detail||data.error||`HTTP ${res.status}`);return data;}
 async function loadMarket(){if(state.busy)return;state.busy=true;state.error=null;status();renderPage();try{
  const [mapping,latest,h,five,day]=await Promise.all([fetchJson('mapping'),fetchJson('latest'),fetchJson('1h'),fetchJson('5m'),fetchJson('24h').catch(()=>({data:{}}))]);
  state.mapping=mapping;state.latest=latest;state.h=h;state.five=five;state.day=day;state.market=V03.decorate(mapMarket(mapping,latest,h,five),h,five,day);
- state.byId=Object.fromEntries(state.market.map(x=>[x.id,x]));state.alchRows=V03.alchemyRows(mapping,latest,h,five,day);state.loadedAt=Date.now();evaluateAlerts();if(user.alerts.some(a=>a.metric==='change24'))void ensureWatchHistory();
+ state.byId=Object.fromEntries(state.market.map(x=>[x.id,x]));state.alchRows=V03.alchemyRows(mapping,latest,h,five,day);state.recipes=PROC.evaluateRecipes(mapping,latest,day);state.loadedAt=Date.now();evaluateAlerts();if(user.alerts.some(a=>a.metric==='change24'))void ensureWatchHistory();
  }catch(e){state.error=e.message;toast('Market feed error: '+e.message);}finally{state.busy=false;status();renderPage();}}
 function stamp(age){if(!Number.isFinite(age))return 'Unknown';if(age<60)return Math.round(age)+'m ago';if(age<1440)return Math.round(age/60)+'h ago';return Math.round(age/1440)+'d ago';}
 function rowsTable(rows,limit=30){if(!rows.length)return empty('No matching items','Try resetting filters or refreshing the public market feed.');return `<div class="table-wrap"><table class="table"><thead><tr><th>Item</th><th>Buy target</th><th>Sell target</th><th>Tax</th><th>Net / ea</th><th>ROI</th><th>1h volume</th><th>Freshness</th><th>Risk</th><th>★</th></tr></thead><tbody>${rows.slice(0,limit).map(x=>{const watched=user.watchlist.includes(x.id);return `<tr data-open="${x.id}"><td class="name">${esc(x.name)}<div class="sub">${esc(x.category)} · Limit ${esc(x.limit??'unknown')}</div></td><td>${compact(x.buy)}</td><td>${compact(x.sell)}</td><td>${compact(x.tax)}</td><td class="${x.net>0?'positive':'negative'}">${compact(x.net)}</td><td class="${x.roi>0?'positive':'negative'}">${pct(x.roi)}</td><td>${compact(x.v1)}</td><td>${stamp(x.age)}</td><td><span class="tag ${x.score>=70?'good':x.score>=45?'warn':'bad'}">${x.score}/100</span></td><td><button class="star ${watched?'on':''}" data-watch="${x.id}" aria-label="${watched?'Remove from':'Add to'} watchlist">${watched?'★':'☆'}</button></td></tr>`;}).join('')}</tbody></table></div><div class="footer-note">Showing ${Math.min(limit,rows.length).toLocaleString()} of ${rows.length.toLocaleString()} results. Buy and sell targets are <strong>recent transaction observations, not guaranteed fill prices</strong>.</div>`;}
@@ -226,7 +263,7 @@ function renderWatchlist(){
 function renderMoney(){const natureId=state.mapping.find(x=>x.name.toLowerCase()==='nature rune')?.id,nature=Number((state.latest?.data||state.latest||{})[natureId]?.high)||0;
  const alch=state.alchRows,visible=alch.slice(0,user.alchLimit||10);
  const p=user.process,profit=(Number(p.output)||0)*(Number(p.outputQty)||0)*(1-.02)-(Number(p.input)||0)*(Number(p.inputQty)||0),perHour=profit*(Number(p.actionsPerHour)||0);
- $('#moneyPage').innerHTML=head('OSRS Pump / Research','Money-Making Lab','Find public-data alching opportunities or calculate any custom item-processing method.')+
+ $('#moneyPage').innerHTML=head('OSRS Pump / Research','Money-Making Lab','Explore public Wiki Herblore recipes and high-alchemy opportunities.')+PROC.renderProcessing(v3ctx())+
  `<div class="split"><div class="card"><div class="section-heading"><h3>High Alchemy screener</h3><span class="tag">Nature rune: ${nature?gp(nature):'N/A'}</span></div><p class="smallnote kicker">Estimated result = high alch value − instant-buy price − nature rune instant-buy price. Excludes time, staff requirements, alchemy costs besides runes, and buy limits.</p>${!state.market.length?loading():!nature?empty('Nature rune quote missing','The alchemy list requires current nature rune prices.'):alch.length?`<div class="scroll-y">${visible.map(x=>`<div class="item-row"><div><strong>${esc(x.name)}</strong><small>Buy ${gp(x.buy)} · Alch ${gp(x.highalch)} · Limit ${esc(x.limit??'—')}</small></div><div class="gap8"><strong class="positive">+${compact(x.net)} gp</strong><button class="action secondary minor" data-open="${x.id}">View</button></div></div>`).join('')}</div>${alch.length>visible.length?`<button class="pump-more" data-alch-more="1">Load 10 more · ${alch.length-visible.length} remaining</button>`:''}`:empty('No qualifying items','Current data has no positive items meeting minimum liquidity/freshness settings.')}</div><div class="card"><div class="section-heading"><h3>Processing / crafting calculator</h3></div><p class="smallnote kicker">Manual public-data calculator for methods such as cleaning herbs, processing supplies, tanning and combining ingredients. Verify yields using the OSRS Wiki.</p><div class="grid-controls" id="processInputs" style="grid-template-columns:1fr 1fr">${field('Input price per unit','input',p.input)}${field('Output sell price','output',p.output)}${field('Input units / action','inputQty',p.inputQty)}${field('Output units / action','outputQty',p.outputQty)}${field('Actions / hour','actionsPerHour',p.actionsPerHour)}</div><div class="divider-x"></div><div class="stats" style="grid-template-columns:1fr 1fr;margin:0">${metric('Estimated profit / action',gp(Math.floor(profit)),'Assumes 2% sale tax')}${metric('Estimated gp / hour',gp(Math.floor(perHour)),'Manual throughput assumption',perHour>0?'positive':'negative')}</div><p class="smallnote">This generic model charges 2% sales tax on output; tax-exempt items, the per-item tax cap, and multi-output recipes must be handled in a specialized recipe. Calculations are estimates, not verified hourly rates.</p></div></div>`;
  for(const el of document.querySelectorAll('#moneyPage #processInputs [name]'))el.addEventListener('change',()=>{user.process[el.name]=Math.max(0,Number(el.value)||0);save();renderMoney();});
 }
@@ -246,7 +283,7 @@ document.addEventListener('click',e=>{const node=e.target.closest('[data-page],[
  if(node.dataset.preset){const type=node.dataset.preset;user.filter={sort:'score',profitable:true,...(type==='safe'?{minVolume:1000,maxAge:30,minScore:75}:type==='budget'?{maxPrice:100000,minVolume:100,minScore:50}:{minRoi:3,minVolume:100,maxAge:180})};save();renderFlips();return;}
 });
 $('#refresh').addEventListener('click',loadMarket);
-V03.init(v3ctx());nav(names[user.page]?user.page:'dashboard');loadMarket();
+V03.init(v3ctx());DASH.init(()=>v3ctx());$('#pumpBack')?.addEventListener('click',()=>{if(!goBack()&&user.page==='dashboard')toast('Already at Home');});nav(names[user.page]?user.page:'dashboard');loadMarket();
 setInterval(()=>{if(!document.hidden)loadMarket();},120_000);
 
 if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});

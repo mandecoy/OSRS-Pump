@@ -114,6 +114,8 @@ public final class MainActivity extends Activity {
         String mime;
         switch (name) {
             case "index.html": mime = "text/html"; break;
+            case "dashboard.js":
+            case "processing.js":
             case "market-intel.js":
             case "history-chart.js":
             case "v03.js":
@@ -244,8 +246,20 @@ public final class MainActivity extends Activity {
 
     @Override
     public void onBackPressed() {
-        if (web != null && web.canGoBack()) web.goBack();
-        else super.onBackPressed();
+        if (web == null) { super.onBackPressed(); return; }
+        // OSRS Pump is an SPA: WebView.canGoBack() cannot see category/item navigation.
+        web.evaluateJavascript(
+            "(window.OSRSPumpNavigateBack && window.OSRSPumpNavigateBack()) ? true : false",
+            handled -> {
+                if ("true".equals(handled)) return;
+                new android.app.AlertDialog.Builder(MainActivity.this)
+                    .setTitle("Exit OSRS Pump?")
+                    .setMessage("Return to your Android home screen?")
+                    .setNegativeButton("Stay", (dialog, which) -> dialog.dismiss())
+                    .setPositiveButton("Exit", (dialog, which) -> finish())
+                    .show();
+            }
+        );
     }
 
     @Override
