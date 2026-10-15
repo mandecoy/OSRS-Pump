@@ -65,7 +65,7 @@ const gp=x=>x==null||!Number.isFinite(x)?'—':fmt(x)+' gp';
 export function renderProcessing(ctx){
  const u=ctx.user,all=ctx.recipes||[];
  const kind=u.processKind||'all';
- const threshold=Number.isFinite(Number(u.processMinProfit))?Number(u.processMinProfit):null;
+ const threshold=u.processMinProfit==null||u.processMinProfit===''?null:(Number.isFinite(Number(u.processMinProfit))?Number(u.processMinProfit):null);
  const rank=u.processSort||'net';
  const visible=all.filter(x=>(kind==='all'||x.kind===kind)&&
    (threshold===null||x.net!==null&&x.net>=threshold)&&
