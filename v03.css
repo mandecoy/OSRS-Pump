@@ -204,3 +204,75 @@ h1,h2,h3,h4{color:var(--pump-text)}
 .pump-watch-sub{color:#ad9f84;font-size:11px;margin:8px 0}
 .pump-watch-actions{display:flex;gap:9px;flex-wrap:wrap}
 @media(max-width:790px){.pump-sizer{grid-template-columns:repeat(2,minmax(0,1fr))}.pump-watch-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+
+/* v0.4 home widget controls and processing method scanner */
+.pump-native-back{border:1px solid #725c38;background:#30271b;color:#f4d58c;border-radius:9px;padding:6px 11px;font-size:22px;min-width:42px;min-height:42px;cursor:pointer}
+.pump-native-back[hidden]{display:none!important}
+.pump-home-custombar{display:flex;justify-content:space-between;align-items:center;margin:25px 0 10px;gap:10px}
+.pump-home-custombar strong{font-size:15px;color:#f0d29e}
+.pump-home-custombar button,.pump-home-widget-title button{background:#463420;color:#f3d085;border:1px solid #795e38;border-radius:8px;min-height:36px;padding:6px 11px;cursor:pointer}
+.pump-budget-row{display:flex;flex-wrap:wrap;align-items:center;gap:9px;padding:14px 12px;background:#29261e;border:1px solid #6b5735;border-radius:12px;margin:15px 0}
+.pump-budget-row label{font-size:12px;color:#e6c887;font-weight:700}
+.pump-budget-row input{flex:1;min-width:125px;max-width:230px;background:#171713;color:#f0e1bb;border:1px solid #675437;padding:9px;border-radius:7px;font-size:15px;min-height:42px}
+.pump-budget-row button{border:none;background:#bf913f;color:#211d14;border-radius:8px;min-height:42px;font-weight:800;padding:9px 14px}
+.pump-home-editor{background:#2b261c;border:1px solid #79623c;padding:13px;border-radius:12px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-bottom:13px}
+.pump-home-editor label{display:flex;align-items:center;gap:7px;font-size:12px;color:#ebd8b5}
+.pump-home-editor input{accent-color:#dbb360;width:17px;height:17px}
+.pump-home-editor p{grid-column:1/-1}
+.pump-home-widget{background:#22201a;border:1px solid #6b5532;border-radius:13px;padding:15px;margin:14px 0 19px}
+.pump-home-widget-title{display:flex;justify-content:space-between;align-items:center;gap:10px;margin:0 0 10px}
+.pump-home-widget-title h3{font-size:15px;color:#efc262}
+.pump-home-widget-title>div{display:flex;gap:5px}
+.pump-home-widget-title button{min-width:35px;min-height:36px;padding:6px 9px}
+.pump-home-item{width:100%;display:flex;justify-content:space-between;gap:12px;align-items:center;text-align:left;background:#2b2921;color:#ede0c8;border:1px solid #4e4532;border-radius:9px;padding:12px;margin:7px 0;min-height:52px;font-size:12px}
+.pump-home-item-name{font-size:13px;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.pump-home-item-name small,.pump-home-item>span>small{display:block;color:#c0b19a;font-size:11px;margin-top:4px}
+.pump-home-item>span:last-child{text-align:right;white-space:nowrap;font-size:13px;font-weight:800}
+.pump-home-two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.pump-home-two>div{min-width:0}
+.pump-home-two strong{font-size:12px;color:#e8ca8a}
+.pump-home-two .pump-home-item{display:block;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:normal}
+.pump-home-two .pump-home-item strong{display:block;margin-top:5px}
+.pump-text-action{display:block;color:#f0ca74;border:1px solid #685332;background:#3a2d1d;border-radius:9px;margin-top:14px;text-align:center;width:100%;padding:11px;font-weight:750;font-size:12px;min-height:42px}
+.pump-widget-tabs{display:flex;gap:7px;overflow-x:auto;margin:11px 0}
+.pump-widget-tabs button{background:#3a3022;color:#dac19a;border-radius:24px;border:1px solid #665131;font-size:12px;padding:9px;white-space:nowrap}
+.pump-widget-tabs button.active{background:#805b29;color:#fff0be;border-color:#ba8b43}
+.pump-home-mini{display:flex;align-items:center;justify-content:space-between;gap:9px;font-size:12px;border-bottom:1px solid #48402e;padding:9px 0}
+.pump-home-mini strong{white-space:nowrap}
+.pump-home-widget h4{margin:16px 0 8px;color:#ebd7ad;font-size:13px}
+.pump-calculator-stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.pump-calculator-stats span{background:#302a1f;padding:9px;border-radius:9px;color:#b6a88e;font-size:11px}
+.pump-calculator-stats b{color:#f0dfbc;display:block;font-size:14px;margin-top:5px}
+.pump-home-controlrow label{font-size:12px;color:#e3c690;display:flex;gap:9px;align-items:center}
+.pump-home-controlrow select{flex:1;min-width:0;background:#262117;border:1px solid #7e633e;color:#e9d5b0;padding:11px;border-radius:8px;max-width:95%}
+.pump-method-lab{padding:14px;background:#282319;border:1px solid #685333;border-radius:14px;margin:15px 0}
+.pump-method-controls{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.pump-method-controls label{display:flex;flex-direction:column;gap:6px;font-size:11px;color:#dcc89f;min-width:0}
+.pump-method-controls input:not([type=checkbox]),.pump-method-controls select{background:#181713;color:#f3e2c0;border:1px solid #685338;border-radius:9px;padding:10px;min-height:42px;width:100%;min-width:0}
+.pump-method-controls .pump-method-check{flex-direction:row;align-items:center;grid-column:1/-1}
+.pump-method-controls .pump-method-check input{width:18px;height:18px;accent-color:#e2b65e}
+.pump-method-card{border:1px solid #615236;border-left:4px solid #ba8d3e;background:#1b1b16;border-radius:11px;padding:13px;margin:9px 0}
+.pump-method-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.pump-method-head div{min-width:0}
+.pump-method-head strong{font-size:13px;overflow-wrap:anywhere}
+.pump-method-head small{display:block;margin-top:4px;color:#aa9a7e}
+.pump-method-recipe{font-size:11px;color:#d1bfa0;padding:8px 0;line-height:1.4}
+.pump-method-facts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.pump-method-facts span{font-size:11px;color:#b8a98e}
+.pump-method-facts b{display:block;color:#f0d9a9;font-size:12px;margin:3px 0}
+.pump-method-actions{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:7px;margin-top:12px}
+.pump-method-actions a,.pump-method-actions button{background:#49361e;border:1px solid #8a6838;border-radius:8px;color:#efc77d;padding:8px 10px;text-decoration:none;font-size:11px}
+.pump-method-actions>span{flex:1;color:#cab58e;font-size:10px}
+.pump-method-warning{color:#f18a6f;font-size:10px}
+@media(max-width:600px){
+ .pump-home-widget{padding:12px}
+ .pump-home-two{grid-template-columns:1fr}
+ .pump-budget-row label{width:100%}
+ .pump-budget-row input{min-width:0;flex:1}
+ .pump-home-editor{grid-template-columns:1fr}
+ .pump-method-lab{padding:12px}
+ .pump-method-head strong{font-size:12px}
+ .pump-method-facts{gap:8px 5px}
+ .pump-home-widget .pump-overview{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
