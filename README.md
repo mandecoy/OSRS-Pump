@@ -10,6 +10,16 @@ OSRS Pump is an independent community project. Not affiliated with or endorsed b
 
 The [v0.3 product blueprint](docs/v0.3/README.md) includes all four requested developer specifications: [screen-by-screen OSRS redesign](docs/v0.3/01-SCREENS.md), [prioritized feature backlog](docs/v0.3/02-BACKLOG.md), [UI/component architecture](docs/v0.3/03-COMPONENTS.md) and [advanced market filters/formulas](docs/v0.3/04-FILTERS-AND-FORMULAS.md). **The v0.3 beta implements its theme, Markets discovery categories, item cards and advanced filtering; more advanced analytics, specialty calculators and background notifications remain planned.**
 
+## v0.4.0 Beta 1 — Home, Processing Methods and Back Navigation
+
+- **Android back gesture/button:** navigates through the app's own screen history, restores previous item/category and approximate scroll position, closes open filter sheets, and asks before exiting on Home.
+- **Configurable Home:** eight hideable/reorderable sections for budget-flips, top market opportunities, market movers, watchlists, portfolio, trade-size calculator, money-making highlights and reliability indicators. GP budget and layout are saved locally.
+- **Processing Methods:** 30 public Wiki-defined recipes covering herb cleaning and unfinished potion creation, each with its own skill requirement and Wiki source.
+- **Live processing math:** conservative input costs use recent instant-buy observations; output proceeds use recent instant-sell observations after per-item GE sales tax. The tool includes 24h output volume, ROI, budget-limited capacity, buy-limit constraints when known, and editable *hypothetical* actions/hour.
+- **Filters:** recipe group, minimum net profit, profitable-only and net-profit/ROI/volume rankings. Unavailable prices do not become fictional profits.
+- **Download:** [v0.4.0 beta APK](https://github.com/mandecoy/OSRS-Pump/releases/download/v0.4.0-beta.1/OSRS-Pump-v0.4.0-beta.1.apk) after GitHub Actions completes. Export the existing portfolio JSON backup before uninstalling an older debug-signed beta.
+- **Limitations:** Public Wiki market data shows *completed trades* rather than standing offers. Future fills, investment returns and processing/hour scenarios are not guaranteed. A full device smoke test is still needed.
+
 ## Android APK (Beta)
 
 **v0.3.2 Beta 1:** Interactive history chart with GP price labels, touch/keyboard sample inspection showing instant-buy and instant-sell averages plus both trade-volume sides, 1-day/7-day/30-day/90-day views, item image next to the name, and direct OSRS Wiki prices link. Prices are bucket averages of public completed trades. The latest beta is built by GitHub Actions; verify successful release before downloading. Export JSON before replacing debug-signed beta APKs.
