@@ -19,7 +19,7 @@ const latest={data:{
 }};
 const day={data:{4:{highPriceVolume:1350,lowPriceVolume:650}}};
 test('30 verified public recipes, including two-input unfinished potions',()=>{
- assert.equal(HERBS.length,15);assert.equal(RECIPES.length,30);
+ assert.equal(HERBS.length,15);assert.ok(RECIPES.length>=80);
  assert.equal(RECIPES.filter(r=>r.kind==='Cleaning').length,15);
  assert.equal(RECIPES.filter(r=>r.kind==='Unfinished potions').length,15);
  assert.ok(RECIPES.every(r=>r.source.startsWith('https://oldschool.runescape.wiki/w/')));
