@@ -6,13 +6,13 @@ const money=x=>!Number.isFinite(Number(x))?'—':Math.round(Number(x)).toLocaleS
 const short=x=>!Number.isFinite(Number(x))?'—':Math.abs(x)>=1e9?(x/1e9).toFixed(2)+'B':Math.abs(x)>=1e6?(x/1e6).toFixed(2)+'M':Math.abs(x)>=1e3?(x/1e3).toFixed(1)+'K':Math.round(x).toLocaleString('en-US');
 const number=x=>x===null||x===undefined||x===''?null:Number(x);
 const keys=['minPrice','maxPrice','minProfit','maxProfit','minRoi','maxRoi','minVolume','maxVolume','min5m','max5m','minDay','maxDay','minLimit','maxLimit','maxAge','minScore','budget'];
-export const DEFAULT_FILTER={sort:'score',direction:'desc',members:'all',profitable:false};
+export const DEFAULT_FILTER={sort:'flipRank',direction:'desc',members:'all',profitable:false,showRisky:false};
 export const PRESETS={
-  liquid:{sort:'v1',minVolume:200,profitable:true},
-  lowcash:{sort:'roi',maxPrice:100000},
-  margin:{sort:'net',minProfit:1000,profitable:true},
-  highroi:{sort:'roi',minRoi:3,profitable:true},
-  expensive:{sort:'net',minPrice:10000000,profitable:true}
+  liquid:{sort:'flipRank',minVolume:200,profitable:true},
+  lowcash:{sort:'flipRank',maxPrice:100000},
+  margin:{sort:'flipBatchProfit',minProfit:5,profitable:true},
+  highroi:{sort:'flipRoi',minRoi:3,profitable:true},
+  expensive:{sort:'flipRank',minPrice:10000000,profitable:true}
 };
 export const CATEGORIES=[
   {group:'Trending',id:'rising',icon:'↗',label:'Above daily average',detail:'Recent average higher than 24h average',tone:'green'},
@@ -57,20 +57,23 @@ export function applyFilters(rows,f={}){
   const text=(f.search||'').trim().toLowerCase();if(text&&!r.name.toLowerCase().includes(text)&&String(r.id)!==text)return false;
   if(f.members==='members'&&!r.members)return false;if(f.members==='f2p'&&r.members)return false;
   if(f.category&&f.category!=='all'&&r.category!==f.category)return false;
-  if(f.profitable&&!(r.net>0))return false;
+  if(!f.showRisky&&!r.alchMode&&!r.flipRecommended)return false;
+  const net=r.alchMode?r.net:f.showRisky?r.net:r.flipNet;
+  const roi=r.alchMode?r.roi:f.showRisky?r.roi:r.flipRoi;
+  if(f.profitable&&!(net>0))return false;
   if(!testNum(r.buy,number(f.minPrice),number(f.maxPrice)))return false;
-  if(!testNum(r.net,number(f.minProfit),number(f.maxProfit)))return false;
-  if(!testNum(r.roi*100,number(f.minRoi),number(f.maxRoi)))return false;
+  if(!testNum(net,number(f.minProfit),number(f.maxProfit)))return false;
+  if(!testNum(roi*100,number(f.minRoi),number(f.maxRoi)))return false;
   if(!testNum(r.v1,number(f.minVolume),number(f.maxVolume)))return false;
   if(!testNum(r.fiveVol,number(f.min5m),number(f.max5m)))return false;
   if(!testNum(r.dayVol,number(f.minDay),number(f.maxDay)))return false;
   if(!testNum(r.limit??null,number(f.minLimit),number(f.maxLimit)))return false;
   if(!testNum(r.age,null,number(f.maxAge)))return false;
-  if(!testNum(r.score,number(f.minScore),null))return false;
+  if(!testNum(r.executionScore??0,number(f.minScore),null))return false;
   if(!testNum(r.buy,null,number(f.budget)))return false;
   return true;
  });
- const key=({volume5:'fiveVol',volume24:'dayVol',volume1:'v1',price:'buy',change:'dayGapPct'}[f.sort]||f.sort||'score');
+ const key=({volume5:'fiveVol',volume24:'dayVol',volume1:'v1',price:'buy',change:'dayGapPct',score:'executionScore',net:'flipNet',roi:'flipRoi'}[f.sort]||f.sort||'flipRank');
  const direction=f.direction==='asc'?1:-1;
  out.sort((a,b)=>{const av=Number(a[key]),bv=Number(b[key]);if(!Number.isFinite(av)&&!Number.isFinite(bv))return a.id-b.id;if(!Number.isFinite(av))return 1;if(!Number.isFinite(bv))return -1;return (av-bv)*direction||a.id-b.id;});
  return out;
@@ -84,10 +87,10 @@ export function categoryRows(rows,id){
    case 'falling':return r.dayGapPct!==null&&r.dayGapPct<0&&r.dayVol>0;
    case 'gainers':return r.dayGapGp!==null&&r.dayGapGp>0;
    case 'losers':return r.dayGapGp!==null&&r.dayGapGp<0;
-   case 'margins':case 'roi':return r.net>0;
-   case 'fast':return r.net>0&&r.v1>0&&r.age<=1440;
-   case 'lowcash':return r.net>0&&r.buy<=100000;
-   case 'expensive':return r.net>0&&r.buy>=10000000;
+   case 'margins':case 'roi':return r.flipRecommended;
+   case 'fast':return r.flipRecommended&&r.v1>0;
+   case 'lowcash':return r.flipRecommended&&r.buy<=100000;
+   case 'expensive':return r.flipRecommended&&r.buy>=10000000;
    case 'volume5':return r.fiveVol!==null&&r.fiveVol>0;
    case 'volume1':return r.v1>0;
    case 'volume24':return r.dayVol!==null&&r.dayVol>0;
@@ -105,8 +108,8 @@ export function categoryRows(rows,id){
   }
  };
  let list=rows.filter(match);const by={
- rising:'dayGapPct',falling:'dayGapPct',gainers:'dayGapGp',losers:'dayGapGp',margins:'net',roi:'roi',
- fast:'v1',lowcash:'roi',expensive:'net',volume5:'fiveVol',volume1:'v1',volume24:'dayVol',quiet:'v1'
+ rising:'dayGapPct',falling:'dayGapPct',gainers:'dayGapGp',losers:'dayGapGp',margins:'flipBatchProfit',roi:'flipRoi',
+ fast:'flipRank',lowcash:'flipRank',expensive:'flipBatchProfit',volume5:'fiveVol',volume1:'v1',volume24:'dayVol',quiet:'v1'
  };
  const key=by[id];if(key){list.sort((a,b)=>(id==='falling'||id==='losers'||id==='quiet'?1:-1)*((a[key]||0)-(b[key]||0)));}
  return list;
@@ -152,12 +155,13 @@ function filtersModal(ctx){
  + '<h4>Price & budget (GP)</h4>'+pair('minPrice','Min item price','maxPrice','Max item price')+pair('budget','Capital available','minLimit','Min 4-hour buy limit')
  + '<h4>Estimated flipping returns</h4>'+pair('minProfit','Min net profit / ea','maxProfit','Max net profit / ea')+pair('minRoi','Min after-tax ROI %','maxRoi','Max after-tax ROI %')
  + '<h4>Trading volume (units)</h4>'+pair('min5m','Min 5m volume','max5m','Max 5m volume')+pair('minVolume','Min 1h volume','maxVolume','Max 1h volume')+pair('minDay','Min 24h volume','maxDay','Max 24h volume')
- + '<h4>Freshness & risk</h4>'+pair('maxAge','Max price age (min)','minScore','Min quality score')
+ + '<h4>Freshness & risk</h4>'+pair('maxAge','Max price age (min)','minScore','Min execution score')
  + select('members','Membership',[['all','All items'],['members','Members only'],['f2p','Free to play']])
- + select('sort','Sort results',[['score','Quality score'],['net','Net profit each'],['roi','Net ROI'],['volume1','Hourly volume'],['volume24','Daily volume'],['volume5','5m volume'],['price','Entry price'],['change','Daily average gap']])
+ + select('sort','Sort results',[['flipRank','Best feasible flip'],['flipBatchProfit','Capped batch profit'],['flipRoi','After-tax ROI'],['executionScore','Execution evidence (0-100)'],['net','GP / item'],['volume1','Hourly volume'],['volume24','Daily volume'],['volume5','5m volume'],['price','Entry price'],['change','Daily average gap']])
  + select('direction','Sort order',[['desc','High to low'],['asc','Low to high']])
  + '<label class="pump-filter-check"><input name="profitable" type="checkbox" '+(f.profitable?'checked':'')+'> Show profitable margins only</label>'
- + '<p class="pump-caveat">Wiki prices are observations of completed trades, not live offers. Margins and risk scores do not guarantee fills. Fields accept K and M suffixes.</p></div>'
+ + '<label class="pump-filter-check"><input name="showRisky" type="checkbox" '+(f.showRisky?'checked':'')+'> Include anomalies &amp; low-volume items (research only)</label>'
+ + '<p class="pump-caveat">Wiki prices are observations of completed trades, not live offers. Recommended flips require recent two-sided activity, 1%+ after-tax ROI, 5 GP+ per item, and 1,000 GP+ capacity-sized profit. Execution score is a heuristic, not a fill probability. Fields accept K and M suffixes.</p></div>'
  + '<div class="pump-sheet-actions"><button type="button" class="pump-outline" data-v3-reset="1">Reset</button><button class="pump-gold" type="submit">Apply filters</button></div></form></div>';
 }
 export function parseGp(str){
@@ -175,10 +179,10 @@ export function validate(f){
 }
 function toolbar(ctx,items,mode){
  const count=items.length.toLocaleString(), f=ctx.user.v3Filter||DEFAULT_FILTER;
- const chips=['minPrice','maxPrice','minProfit','minRoi','minVolume','maxVolume','minDay','maxAge','members'].filter(k=>f[k]!==undefined&&f[k]!==null&&f[k]!==''&&f[k]!=='all');
+ const chips=['showRisky','minPrice','maxPrice','minProfit','minRoi','minVolume','maxVolume','minDay','maxAge','members'].filter(k=>f[k]!==undefined&&f[k]!==null&&f[k]!==''&&f[k]!=='all');
  return '<div class="pump-toolbar"><strong>'+count+' items</strong><button class="pump-outline" data-v3-filter="1">☷ Filters '+(chips.length?'('+chips.length+')':'')+'</button></div><div class="pump-quick-presets">'
  +Object.entries({liquid:'Liquid',lowcash:'Under 100K',margin:'High Margin',highroi:'High ROI',expensive:'10M+'}).map(([k,v])=>'<button data-v3-preset="'+k+'">'+v+'</button>').join('')
- +'</div><p class="pump-caption">Indicative passive buy near low / sell near high. GE tax included. Trade times and liquidity matter.</p>';
+ +'</div><p class="pump-caption">Screened for fresh two-sided trades and repeatable volume. Ranked by conservative after-tax ROI and capacity-sized profit. Execution score measures evidence, not fill probability.</p>';
 }
 export function home(ctx){
  const market=ctx.rows||[],fresh=market.filter(x=>x.net>0&&x.age<=60&&x.v1>0),best=[...fresh].sort((a,b)=>b.score-a.score||b.net-a.net);
@@ -210,8 +214,9 @@ export function markets(ctx){
  const items=cat==='alch'?(ctx.alchRows||[]):categoryRows(all,cat);
  const f=ctx.user.v3Filter||DEFAULT_FILTER;
  const sorts={rising:'change',falling:'change',gainers:'dayGapGp',losers:'dayGapGp',margins:'net',roi:'roi',fast:'v1',lowcash:'roi',expensive:'net',volume5:'volume5',volume1:'volume1',volume24:'volume24',quiet:'v1',alch:'net'};
- const autoSort=f.sort==='score';
- const selected=applyFilters(items,{...f,sort:autoSort?(sorts[cat]||'score'):f.sort,direction:autoSort&&['falling','losers','quiet'].includes(cat)?'asc':f.direction,search:''});
+ const autoSort=f.sort==='flipRank';
+ const isFlip=['margins','roi','fast','lowcash','expensive'].includes(cat);
+ const selected=applyFilters(items,{...f,showRisky:!isFlip||f.showRisky,sort:autoSort?(sorts[cat]||'flipRank'):f.sort,direction:autoSort&&['falling','losers','quiet'].includes(cat)?'asc':f.direction,search:''});
  return '<div class="pump-back"><button data-v3-back="1">← All markets</button></div>'
  +title(info.icon+' '+info.label,info.detail)
  +'<p class="pump-caveat">This is a data-driven category. Trade volume measures past filled items, not order-book depth.</p>'
@@ -232,7 +237,7 @@ export function flips(ctx){
  const rows=ctx.rows||[],filter=ctx.user.v3Filter||DEFAULT_FILTER;
  const result=applyFilters(rows,filter);
  const text=esc(filter.search||'');
- return title('Advanced Flip Finder','Search, sort and screen the Grand Exchange — without a subscription.')
+ return title('Advanced Flip Finder','Realistic candidates only by default. Illiquid items are research-only; do not mistake anomalies for fillable trades.')
  +'<div class="pump-searchbar"><span>⌕</span><input id="pumpFlipSearch" placeholder="Search items by name or item ID…" value="'+text+'" autocomplete="off"><button id="pumpFlipFind" type="button">Find</button></div>'
  +toolbar(ctx,result,'flips')
  +'<div class="pump-list">'+list(result,ctx,ctx.user.v3Limit||40)+'</div>'
@@ -261,6 +266,7 @@ export function init(ctx){
   const d=Object.fromEntries(new FormData(e.target));const f={...ctx.user.v3Filter,...d};
   for(const k of keys)f[k]=parseGp(d[k]);
   f.profitable=!!e.target.querySelector('[name=profitable]').checked;
+  f.showRisky=!!e.target.querySelector('[name=showRisky]').checked;
   f.search=ctx.user.v3Filter?.search||'';
   const error=validate(f);if(error){ctx.toast(error.replace(/([a-z])([A-Z])/g,'$1 $2'));return;}
   ctx.user.v3Filter=f;ctx.user.v3Limit=10;ctx.save();document.body.classList.remove('pump-sheet-open');ctx.renderPage();
