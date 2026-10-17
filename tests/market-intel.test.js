@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {alertValue,alertDisplay,riskBadge,sizingCard,watchCard} from '../market-intel.js';
 
 const now=Date.now()/1000;
-const item={id:4151,name:'Abyssal whip',icon:'Abyssal whip.png',buy:1000,sell:1200,limit:70,net:176,roi:.176,v1:500,dayVol:5000,age:4};
+const item={id:4151,name:'Abyssal whip',icon:'Abyssal whip.png',buy:1000,sell:1200,limit:70,net:176,roi:.176,v1:500,dayVol:5000,age:4,flipModel:'recent-conservative-v1',flipRecommended:true,flipBuy:1000,flipSell:1200,flipNet:176,flipRoi:.176,flipTax:24,flipUnits:5,flipBatchProfit:880,flipInvestment:5000,flipLimitKnown:true,flipFlags:[],flipReasons:[]};
 test('sizer card shows cash cap, four-hour limit and after-tax potential',()=>{
  const html=sizingCard(item,5000);
  assert.match(html,/Trade-size calculator/);

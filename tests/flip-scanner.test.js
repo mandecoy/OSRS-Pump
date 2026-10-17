@@ -51,7 +51,7 @@ test('quotes far apart or stale or missing paired averages not recommended',()=>
  const stale=healthy({lowTime:ts-7200});const old=evaluated(stale);
  assert.equal(old.flipRecommended,false);
  assert.ok(old.flipReasons.includes('Stale quote'));
- const sep=healthy({lowTime:ts-2000});
+ const sep=healthy({lowTime:ts-3000});
  assert.ok(evaluated(sep).flipReasons.includes('Trades too far apart'));
  const data=healthy();delete data.H.avgLowPrice;
  assert.ok(evaluated(data).flipReasons.includes('Missing recent paired averages'));

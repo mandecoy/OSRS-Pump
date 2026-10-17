@@ -11,8 +11,8 @@ test('reject inverted minimum/maximum ranges',()=>{
  assert.equal(validate({minPrice:0,maxPrice:0}),null);
 });
 const fake=[
- {id:1,name:'Nature rune',buy:200,sell:250,net:45,roi:.225,v1:1000,age:20,limit:18000,score:90,category:'Runes & teleports',members:false},
- {id:2,name:'Abyssal whip',buy:2000000,sell:2050000,net:9000,roi:.0045,v1:50,age:250,limit:70,score:50,category:'Equipment',members:true}
+ {id:1,name:'Nature rune',buy:200,sell:250,net:45,roi:.225,v1:1000,age:20,limit:18000,score:90,category:'Runes & teleports',members:false,flipRecommended:true,flipNet:45,flipRoi:.225,executionScore:80,flipRank:80},
+ {id:2,name:'Abyssal whip',buy:2000000,sell:2050000,net:9000,roi:.0045,v1:50,age:250,limit:70,score:50,category:'Equipment',members:true,flipRecommended:true,flipNet:9000,flipRoi:.0045,executionScore:40,flipRank:60}
 ];
 test('filters combine max price, min volume, stale limit and membership',()=>{
  assert.deepEqual(applyFilters(fake,{maxPrice:1000,minVolume:100,maxAge:60,members:'f2p'}).map(r=>r.id),[1]);
