@@ -16,27 +16,27 @@ export function riskBadge(row){
    (s.flags.length?'⚠ '+escapeHtml(s.flags.join(' · ')):'✓ No major flags')+'</span>';
 }
 export function sizingCard(row,budget){
- const t=tradeSize(budget,row.buy,row.sell,row.name,row.limit);
- if(!t)return '<div class="card">Trade sizing unavailable until valid market quotes load.</div>';
+ const t=row.flipModel?row:null;
+ if(!t||!row.flipRecommended)return '<div class="card"><strong>Research only — not a recommended flip</strong><p class="smallnote">'+escapeHtml((row.flipReasons||['Insufficient recent two-sided trades']).join(' · '))+'</p>Raw high/low observations are not executable orders.</div>';
  return '<div class="card" style="margin-top:16px"><div class="section-heading"><h3>Trade-size calculator</h3><span class="tag">4-hour GE cycle</span></div>'+
  '<form id="sizerForm" class="form-inline"><div class="field"><label for="sizerAvailable">GP available</label>'+
- '<input id="sizerAvailable" type="number" name="available" inputmode="numeric" step="1" min="0" value="'+escapeHtml(Math.floor(t.budget))+'"></div>'+
+ '<input id="sizerAvailable" type="number" name="available" inputmode="numeric" step="1" min="0" value="'+escapeHtml(Math.floor(Number(budget)||0))+'"></div>'+
  '<button type="submit" class="action">Calculate</button></form>'+
  '<div class="pump-sizer" style="margin-top:13px">'+
- tile('Units affordable',units(t.affordable))+
- tile('4h GE buy limit',t.limitKnown?units(t.limit):'Not listed')+
- tile('Units to flip',units(t.quantity))+
- tile('Total purchase',gp(t.spend))+
- tile('GE sale tax / item',gp(t.taxEach))+
- tile('Est. total profit after tax',gp(t.profit))+
- '</div><p class="smallnote" style="margin-top:12px">Assumes each unit buys at '+gp(t.buy)+' and sells at '+gp(t.sell)+
+ tile('Units affordable',units(Math.floor((Number(budget)||0)/row.flipBuy)))+
+ tile('4h GE buy limit',t.flipLimitKnown?units(t.limit):'Not listed')+
+ tile('Units to flip',units(t.flipUnits))+
+ tile('Total purchase',gp(t.flipInvestment))+
+ tile('GE sale tax / item',gp(t.flipTax))+
+ tile('Est. total profit after tax',gp(t.flipBatchProfit))+
+ '</div><p class="smallnote" style="margin-top:12px">Assumes each unit buys at '+gp(t.flipBuy)+' and sells at '+gp(t.flipSell)+
  '. Actual fills, volume, existing purchases in this four-hour window and price movement can reduce the quantity or profit.'+
  (t.limitKnown?' The GE limit is an item-wide 4h buy cap; enter how many you have already bought separately when planning additional buys.':' No verified 4h limit was listed, so the quantity shown is budget-only.')+
  '</p><div style="margin-top:8px">'+riskBadge(row)+'</div></div>';
 }
 export function watchCard(row,history,budget){
  const s=history?.summary,loading=!history,hasPrice=Number(row.buy)>0&&Number(row.sell)>0;
- const t=hasPrice?tradeSize(budget,row.buy,row.sell,row.name,row.limit):null;
+ const t=row.flipRecommended?row:null;
  const img=row.icon?'https://oldschool.runescape.wiki/images/'+encodeURIComponent(row.icon.replace(/ /g,'_')):null;
  const historic=v=>v==null?(loading?'Loading…':'—'):gp(v);
  const change=s?.changePct!=null?pc(s.changePct):(loading?'Loading…':'—');
@@ -50,10 +50,10 @@ export function watchCard(row,history,budget){
  tile('24h high (5m avg)',historic(s?.high))+
  tile('24h change (sample midpoint)',change)+
  tile('24h trade volume',row.dayVol==null?'—':units(row.dayVol))+
- tile('Net margin / item',hasPrice?gp(row.net):'—')+
- tile('Potential 4h profit',t?gp(t.profit):'—')+
+ tile('Screened margin / item',t?gp(t.flipNet):'Research only')+
+ tile('Capacity-capped profit',t?gp(t.flipBatchProfit):'Not feasible')+
  '</div>'+riskBadge(hasPrice?row:null)+
- '<p class="smallnote" style="margin-top:8px">24h highs/lows are the extremes of available 5-minute averaged trades, not actual tick highs/lows. Potential profit uses the entered GP and a full unused buy limit.</p></div>';
+ '<p class="smallnote" style="margin-top:8px">24h highs/lows are the extremes of available 5-minute averaged trades, not actual tick highs/lows. Feasibility depends on two-sided volume, quote consistency and conservative trade capacity.</p></div>';
 }
 export function alertValue(alert,row,history){
  if(!row)return null;
