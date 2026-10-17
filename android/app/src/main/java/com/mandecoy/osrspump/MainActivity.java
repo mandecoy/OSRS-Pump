@@ -114,6 +114,7 @@ public final class MainActivity extends Activity {
         String mime;
         switch (name) {
             case "index.html": mime = "text/html"; break;
+            case "flip-scanner.js":
             case "dashboard.js":
             case "processing.js":
             case "market-intel.js":

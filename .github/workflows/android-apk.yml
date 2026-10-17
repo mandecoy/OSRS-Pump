@@ -7,6 +7,7 @@ on:
       - 'tests/**'
       - 'app.js'
       - 'dashboard.js'
+      - 'flip-scanner.js'
       - 'processing.js'
       - 'market-intel.js'
       - 'history-chart.js'
@@ -53,7 +54,7 @@ jobs:
         shell: bash
         run: |
           mkdir -p android/app/src/main/assets/web/icons
-          cp index.html app.js v03.js dashboard.js processing.js market-intel.js history-chart.js logic.js styles.css v03.css manifest.webmanifest android/app/src/main/assets/web/
+          cp index.html app.js v03.js dashboard.js flip-scanner.js processing.js market-intel.js history-chart.js logic.js styles.css v03.css manifest.webmanifest android/app/src/main/assets/web/
           cp icons/pump.svg android/app/src/main/assets/web/icons/
           python3 - <<'PY'
           from pathlib import Path
@@ -80,23 +81,23 @@ jobs:
       - name: Verify APK exists
         run: |
           test -s android/app/build/outputs/apk/debug/app-debug.apk
-          cp android/app/build/outputs/apk/debug/app-debug.apk OSRS-Pump-v0.4.1-beta.1.apk
-          sha256sum OSRS-Pump-v0.4.1-beta.1.apk
+          cp android/app/build/outputs/apk/debug/app-debug.apk OSRS-Pump-v0.4.2-beta.1.apk
+          sha256sum OSRS-Pump-v0.4.2-beta.1.apk
       - uses: actions/upload-artifact@v4
         with:
-          name: OSRS-Pump-Android-v0.4.1-beta.1
-          path: OSRS-Pump-v0.4.1-beta.1.apk
+          name: OSRS-Pump-Android-v0.4.2-beta.1
+          path: OSRS-Pump-v0.4.2-beta.1.apk
           retention-days: 30
       - name: Publish downloadable GitHub beta release
         if: github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if gh release view v0.4.1-beta.1 >/dev/null 2>&1; then
-            gh release upload v0.4.1-beta.1 OSRS-Pump-v0.4.1-beta.1.apk --clobber
+          if gh release view v0.4.2-beta.1 >/dev/null 2>&1; then
+            gh release upload v0.4.2-beta.1 OSRS-Pump-v0.4.2-beta.1.apk --clobber
           else
-            gh release create v0.4.1-beta.1 OSRS-Pump-v0.4.1-beta.1.apk \
+            gh release create v0.4.2-beta.1 OSRS-Pump-v0.4.2-beta.1.apk \
               --prerelease \
-              --title "OSRS Pump Android v0.4.1 beta 1" \
+              --title "OSRS Pump Android v0.4.2 beta 1" \
               --notes "OSRS Pump v0.4.1: Money Making expands to eight processing categories including planks, smelting, smithing, set assembly, teleport tablets and jewellery. Live public Wiki quotes, per-item tax, skill levels, recipe fees, user GP budget, 10+ load-more, and official Jagex 7-day market-volume link. 24h and 7-day volume are not equivalent. Debug-signed: export trades before reinstalling."
           fi

@@ -1,13 +1,13 @@
 {
   "name": "osrs-pump",
-  "version": "0.4.1-beta.1",
+  "version": "0.4.2-beta.1",
   "private": true,
   "type": "module",
   "description": "Open-source, local-first OSRS Grand Exchange market analysis",
   "scripts": {
     "start": "node server.js",
     "test": "node --test tests/*.test.js",
-    "check": "node --check app.js && node --check dashboard.js && node --check processing.js && node --check v03.js && node --check market-intel.js && node --check history-chart.js && node --check server.js && node --check logic.js"
+    "check": "node --check app.js && node --check dashboard.js && node --check flip-scanner.js && node --check processing.js && node --check v03.js && node --check market-intel.js && node --check history-chart.js && node --check server.js && node --check logic.js"
   },
   "engines": {
     "node": ">=22"
