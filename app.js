@@ -5,12 +5,13 @@ import {sizingCard,watchCard,alertValue,alertDisplay,ALERT_METRICS} from './mark
 import * as HISTORY from './history-chart.js';
 import * as DASH from './dashboard.js';
 import * as PROC from './processing.js';
+import * as SCREEN from './flip-scanner.js';
 const $=selector=>document.querySelector(selector);
 const names={dashboard:'Market Overview',markets:'Explore Markets',flips:'Advanced Flip Finder',intel:'Item Intelligence',portfolio:'Trade Portfolio',watchlist:'Watchlist & Alerts',money:'Money-Making Methods',settings:'Settings & Sources'};
 const KEY='osrs-pump-v1';
 const makeId=()=>globalThis.crypto?.randomUUID?.()||`local-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-const defaults={page:'dashboard',watchlist:[],alerts:[],trades:[],selected:4151,historyStep:'1h',historyWindow:'day',filter:{sort:'score',profitable:true,minScore:50},v3Filter:{...V03.DEFAULT_FILTER},v3Category:null,v3Limit:10,v3FilterRevision:2,alchLimit:10,process:{input:1000,output:1500,inputQty:1,outputQty:1,actionsPerHour:300},tradingGp:1000000,watchLimit:10,homeWidgets:DASH.normalizedOrder(),homeHidden:[],homeRank:'net',homeLoad:5,homeCalcId:null,homeCustomize:false,processKind:'all',processSort:'net',processProfitable:false,processMinProfit:null,processRate:1200,processLimit:10};
-function loadLocal(){try{const x=JSON.parse(localStorage.getItem(KEY)||'{}');return {...defaults,...x,filter:{...defaults.filter,...x.filter},v3Filter:x.v3FilterRevision===2?{...V03.DEFAULT_FILTER,...x.v3Filter}:{...V03.DEFAULT_FILTER},v3Limit:10,v3FilterRevision:2};}catch{return {...defaults};}}
+const defaults={page:'dashboard',watchlist:[],alerts:[],trades:[],selected:4151,historyStep:'1h',historyWindow:'day',filter:{sort:'score',profitable:true,minScore:50},v3Filter:{...V03.DEFAULT_FILTER},v3Category:null,v3Limit:10,v3FilterRevision:3,alchLimit:10,process:{input:1000,output:1500,inputQty:1,outputQty:1,actionsPerHour:300},tradingGp:1000000,watchLimit:10,homeWidgets:DASH.normalizedOrder(),homeHidden:[],homeRank:'net',homeLoad:5,homeCalcId:null,homeCustomize:false,processKind:'all',processSort:'net',processProfitable:false,processMinProfit:null,processRate:1200,processLimit:10};
+function loadLocal(){try{const x=JSON.parse(localStorage.getItem(KEY)||'{}');return {...defaults,...x,filter:{...defaults.filter,...x.filter},v3Filter:x.v3FilterRevision===3?{...V03.DEFAULT_FILTER,...x.v3Filter}:{...V03.DEFAULT_FILTER},v3Limit:10,v3FilterRevision:2};}catch{return {...defaults};}}
 const user=loadLocal();
 const state={mapping:[],latest:{},h:{},five:{},day:{},market:[],byId:{},history:[],historyId:null,historyStep:null,busy:false,error:null,loadedAt:0,alchRows:[],watchHistory:{},historyLoading:new Set(),recipes:[]};
 const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -61,13 +62,14 @@ function goBack(){
  return false;
 }
 window.OSRSPumpNavigateBack=goBack;
-function v3ctx(){return {rows:state.market,alchRows:state.alchRows,recipes:state.recipes,mapping:state.mapping,latest:state.latest,day:state.day,user,nav,save,toast,renderPage};}
+function marketForBudget(){return SCREEN.rerankMarket(state.market,Number(user.tradingGp)||0);}
+function v3ctx(){return {rows:marketForBudget(),alchRows:state.alchRows,recipes:state.recipes,mapping:state.mapping,latest:state.latest,day:state.day,user,nav,save,toast,renderPage};}
 function renderPage(){switch(user.page){case 'dashboard':$('#dashboardPage').innerHTML=DASH.home(v3ctx());return;case 'markets':$('#marketsPage').innerHTML=V03.markets(v3ctx());return;case 'flips':$('#flipsPage').innerHTML=V03.flips(v3ctx());return;case 'intel':return renderIntel();case 'portfolio':return renderPortfolio();case 'watchlist':renderWatchlist();void ensureWatchHistory();return;case 'money':return renderMoney();case 'settings':return renderSettings();}}
 function status(){const date=state.loadedAt?new Date(state.loadedAt).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):'Not synced';$('#lastSync').textContent=state.busy?'Syncing Wiki data…':date;$('#refresh').disabled=state.busy;}
 async function fetchJson(path){const res=await fetch('/api/'+path,{cache:'no-store'});const data=await res.json().catch(()=>({error:'Non-JSON response'}));if(!res.ok)throw new Error(data.detail||data.error||`HTTP ${res.status}`);return data;}
 async function loadMarket(){if(state.busy)return;state.busy=true;state.error=null;status();renderPage();try{
  const [mapping,latest,h,five,day]=await Promise.all([fetchJson('mapping'),fetchJson('latest'),fetchJson('1h'),fetchJson('5m'),fetchJson('24h').catch(()=>({data:{}}))]);
- state.mapping=mapping;state.latest=latest;state.h=h;state.five=five;state.day=day;state.market=V03.decorate(mapMarket(mapping,latest,h,five),h,five,day);
+ state.mapping=mapping;state.latest=latest;state.h=h;state.five=five;state.day=day;state.market=SCREEN.assessMarket(V03.decorate(mapMarket(mapping,latest,h,five),h,five,day),h,five,day,Number(user.tradingGp)||0);
  state.byId=Object.fromEntries(state.market.map(x=>[x.id,x]));state.alchRows=V03.alchemyRows(mapping,latest,h,five,day);state.recipes=PROC.evaluateRecipes(mapping,latest,day);state.loadedAt=Date.now();evaluateAlerts();if(user.alerts.some(a=>a.metric==='change24'))void ensureWatchHistory();
  }catch(e){state.error=e.message;toast('Market feed error: '+e.message);}finally{state.busy=false;status();renderPage();}}
 function stamp(age){if(!Number.isFinite(age))return 'Unknown';if(age<60)return Math.round(age)+'m ago';if(age<1440)return Math.round(age/60)+'h ago';return Math.round(age/1440)+'d ago';}
@@ -81,7 +83,7 @@ function renderDashboard(){const all=state.market,valid=all.filter(x=>x.net>0&&x
 }
 function filterFields(){const f=user.filter,val=(key)=>f[key]??'';return `<div class="grid-controls">${field('Search item','search',val('search'),'Item name','text')}${field('Min buy price (gp)','minPrice',val('minPrice'),'0')}${field('Max buy price (gp)','maxPrice',val('maxPrice'),'Unlimited')}${field('Min 1h volume','minVolume',val('minVolume'),'0')}${field('Max 1h volume','maxVolume',val('maxVolume'),'Unlimited')}${field('Min net profit (gp)','minProfit',val('minProfit'),'0')}${field('Max net profit (gp)','maxProfit',val('maxProfit'),'Unlimited')}${field('Min ROI (%)','minRoi',val('minRoi'),'0')}${field('Max ROI (%)','maxRoi',val('maxRoi'),'Unlimited')}${field('Max trade age (min)','maxAge',val('maxAge'),'Unlimited')}${field('Min quality score','minScore',val('minScore'),'0')}${field('Available capital (gp)','budget',val('budget'),'Any')}<div class="field"><label for="f-category">Category</label><select id="f-category" name="category">${['all','Potions','Runes & teleports','Resources','Equipment','Supplies','Other'].map(n=>`<option ${val('category')===n?'selected':''} value="${esc(n)}">${n==='all'?'All categories':n}</option>`).join('')}</select></div><div class="field"><label for="f-members">Membership</label><select id="f-members" name="members"><option value="all">All items</option><option value="members" ${val('members')==='members'?'selected':''}>Members only</option><option value="f2p" ${val('members')==='f2p'?'selected':''}>Free-to-play</option></select></div><div class="field"><label for="f-sort">Rank by</label><select id="f-sort" name="sort">${[['score','Confidence score'],['net','Net profit / item'],['roi','ROI'],['v1','Hourly volume'],['buy','Buy price']].map(([k,v])=>`<option value="${k}" ${val('sort')===k?'selected':''}>${v}</option>`).join('')}</select></div></div>`;}
 function currentFilters(){const out={...user.filter};for(const k of ['minPrice','maxPrice','minVolume','maxVolume','minProfit','maxProfit','minRoi','maxRoi','maxAge','minScore','budget'])out[k]=out[k]===''||out[k]==null?null:Math.max(0,Number(out[k])||0);return out;}
-function renderFlipTable(){const rows=filterMarket(state.market,currentFilters());$('#flipSummary').textContent=`${rows.length.toLocaleString()} matching opportunities · ${state.market.length.toLocaleString()} priced items`;$('#flipTable').innerHTML=state.market.length?rowsTable(rows,100):loading();}
+function renderFlipTable(){const rows=filterMarket(marketForBudget().filter(x=>x.flipRecommended),currentFilters());$('#flipSummary').textContent=`${rows.length.toLocaleString()} matching opportunities · ${state.market.length.toLocaleString()} priced items`;$('#flipTable').innerHTML=state.market.length?rowsTable(rows,100):loading();}
 function renderFlips(){const f=user.filter;$('#flipsPage').innerHTML=head('OSRS Pump / Screener','Advanced Flip Finder','Filter every publicly priced item by cost, liquidity, profit, ROI, freshness and risk.')+
  `<div class="card filters"><div class="filter-header"><h3>Market filters</h3><button class="button-link" id="resetFilters">Reset all</button></div>${filterFields()}<div class="filter-footer"><label class="check"><input id="f-profitable" name="profitable" type="checkbox" ${f.profitable?'checked':''}> Show positive net margins only</label><div class="pills"><button class="pill" data-preset="safe">Liquid</button><button class="pill" data-preset="budget">Budget</button><button class="pill" data-preset="high">High ROI</button></div></div></div><div class="card"><div class="section-heading"><h3 id="flipSummary">Loading…</h3><span class="tag">Tax-adjusted</span></div><div id="flipTable"></div></div>`;
  for(const input of document.querySelectorAll('#flipsPage [name]'))input.addEventListener(input.tagName==='INPUT'?'input':'change',()=>{user.filter[input.name]=input.type==='checkbox'?input.checked:input.value;save();renderFlipTable();});
@@ -114,6 +116,7 @@ function renderIntel(){
  const source=state.historyId===Number(m.id)&&state.historyWindow===range?state.history:[];
  const samples=HISTORY.selectWindow(source,range);
  const summary=analyzeHistory(samples,m.name),current=x?flip(x.buy,x.sell,x.name):null;
+ const assessed=x?SCREEN.readyFlip(x,Number(user.tradingGp)||0):null;
  const icon=m.icon?'https://oldschool.runescape.wiki/images/'+encodeURIComponent(String(m.icon).replace(/ /g,'_')):'';
  const iconTag=icon?'<img src="'+esc(icon)+'" loading="lazy" alt="'+esc(m.name)+' icon" onerror="this.style.display=\'none\'">':'◆';
  const wiki='https://prices.runescape.wiki/osrs/item/'+encodeURIComponent(m.id);
@@ -126,7 +129,7 @@ function renderIntel(){
  const stats=x?'<div class="stats">'+
   metric('Observed buy target',gp(x.buy),'Recent instant sell')+
   metric('Observed sell target',gp(x.sell),'Recent instant buy')+
-  metric('Net flip / item',gp(x.net),'After GE sale tax',x.net>=0?'positive':'negative')+
+  metric('Screened profit / item',assessed?.flipRecommended?gp(assessed.flipNet):'Not reliable',assessed?.flipRecommended?'After tax and buffers':'Insufficient trading evidence',assessed?.flipRecommended?'positive':'negative')+
   metric('24h traded volume',x.dayVol==null?'—':compact(x.dayVol),'Completed units · Activity '+stamp(x.age))+
  '</div>':notice('Latest completed high/low prices unavailable; historical points may still be available.');
  const intervalMetrics='<div class="analysis-grid pump-range-metrics">'+
@@ -138,8 +141,8 @@ function renderIntel(){
   '<div class="item-row"><strong>GE buy limit / 4h</strong><strong>'+esc(m.limit??'Not listed')+'</strong></div>'+
   '<div class="item-row"><strong>Last observed transaction age</strong><strong>'+(x?stamp(x.age):unavailable)+'</strong></div>'+
   '<div class="item-row"><strong>GE sale tax / item</strong><strong>'+(current?gp(current.tax):unavailable)+'</strong></div>'+
-  '<div class="item-row"><strong>Quality heuristic</strong><strong>'+(x?x.score+'/100':unavailable)+'</strong></div>'+
-  '<p class="smallnote">Price ranges represent interval averages, not individual trade extremes. Wiki history has no standing order-book depth. 24h traded-unit volume is sourced from the OSRS Wiki aggregate, not Jagex&#39;s 7-day Most Traded ranking. <a href="https://secure.runescape.com/m=itemdb_oldschool/top100?list=0" target="_blank" rel="noopener noreferrer">Jagex official Most Traded (7 days) ↗</a></p></div>'+
+  '<div class="item-row"><strong>Execution evidence (not fill chance)</strong><strong>'+(assessed?assessed.executionScore+'/100':unavailable)+'</strong></div>'+
+  '<p class="smallnote">Historical extremes are interval averages, not recommended entry/exit prices. Wiki history has no standing order-book depth. 24h traded-unit volume is sourced from the OSRS Wiki aggregate, not Jagex&#39;s 7-day Most Traded ranking. <a href="https://secure.runescape.com/m=itemdb_oldschool/top100?list=0" target="_blank" rel="noopener noreferrer">Jagex official Most Traded (7 days) ↗</a></p></div>'+
   '<div class="card"><div class="section-heading"><h3>Trade action</h3></div><p class="smallnote">Log actual fill prices to calculate realized profits.</p><button class="action" id="newTrade">+ Record a flip</button>'+
   '<div class="divider-x"></div><p class="smallnote">'+esc(m.examine||'Details supplied by the public OSRS Wiki mapping.')+'</p></div></div>';
  $('#intelPage').innerHTML=head('OSRS Pump / Item Intelligence','Item market analysis','Public trade history and price/volume inspection.',buttons)+header+stats+section+intervalMetrics+(x?sizingCard(x,user.tradingGp):'')+analysis;

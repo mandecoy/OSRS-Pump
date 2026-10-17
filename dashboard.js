@@ -23,7 +23,7 @@ function itemCard(r){
  const vol=r.dayVol==null?'—':abr(r.dayVol);
  return '<button class="pump-home-item" type="button" data-open="'+r.id+'"><span class="pump-home-item-name">'+esc(r.name)+
  '<small>24h '+vol+' units · Age '+(Number.isFinite(r.age)?Math.round(r.age)+'m':'—')+'</small></span>'+
- '<span class="'+(r.net>=0?'pump-up':'pump-down')+'">'+(r.net>0?'+':'')+abr(r.net)+' GP<small>'+(Number.isFinite(r.roi)?(r.roi*100).toFixed(1)+'% ROI':'—')+'</small></span></button>';
+ '<span class="'+(r.flipNet>=0?'pump-up':'pump-down')+'">'+(r.flipNet>0?'+':'')+abr(r.flipNet)+' GP<small>'+(Number.isFinite(r.flipRoi)?(r.flipRoi*100).toFixed(1)+'% ROI':'—')+'</small></span></button>';
 }
 function section(id,label,content,user){
  const w=HOME_WIDGETS.find(x=>x.id===id);
@@ -35,18 +35,17 @@ const note=s=>'<p class="pump-caption">'+s+'</p>';
 const empty=s=>'<div class="pump-empty">'+esc(s)+'</div>';
 function renderWidget(id,ctx){
  const u=ctx.user,rows=ctx.rows||[], budget=Number(u.tradingGp)||0;
- const valid=rows.filter(x=>x.net>0&&x.buy>0&&x.age<=180&&x.v1>=20);
- const best=valid.filter(x=>x.buy<=budget).map(x=>({...x,trade:tradeSize(budget,x.buy,x.sell,x.name,x.limit)}))
-   .filter(x=>x.trade&&x.trade.quantity>0).sort((a,b)=>b.trade.profit-a.trade.profit);
- const candidates=valid.slice().sort((a,b)=>b.net-a.net);
+ const valid=rows.filter(x=>x.flipRecommended&&x.flipBuy>0&&x.flipRoi>=0.01);
+ const best=valid.filter(x=>x.flipUnits>0).sort((a,b)=>b.flipRank-a.flipRank||b.flipBatchProfit-a.flipBatchProfit);
+ const candidates=valid.slice().sort((a,b)=>b.flipRank-a.flipRank);
  const limit=u.homeLoad||5;
  switch(id){
- case 'budget':return section(id,'Flips for Your GP',note('Estimated full trade-size profit for '+gp(budget)+'. Buy limits cap quantities when published; estimated profit is not a guaranteed fill.')+
-  (best.length?best.slice(0,limit).map(r=>itemCard(r)).join('')+note('Best-sized example: '+esc(best[0].name)+' · '+fmt(best[0].trade.quantity)+' units · '+gp(best[0].trade.profit)+' estimated net.') :empty('Enter a larger GP budget or wait for recent liquid opportunities.'))+
+ case 'budget':return section(id,'Flips for Your GP',note('Capacity-capped potential profit for '+gp(budget)+'. Recent two-sided activity and price agreement required; fills not guaranteed.')+
+  (best.length?best.slice(0,limit).map(r=>itemCard(r)).join('')+note('Best-sized example: '+esc(best[0].name)+' · '+fmt(best[0].flipUnits)+' units · '+gp(best[0].flipBatchProfit)+' estimated net.') :empty('Enter a larger GP budget or wait for recent liquid opportunities.'))+
   '<button class="pump-text-action" data-go="flips">Explore all flips →</button>',u);
  case 'top':{
   const choice=u.homeRank||'net';
-  const sorted=valid.slice().sort((a,b)=>choice==='roi'?b.roi-a.roi:choice==='volume'?b.v1-a.v1:b.net-a.net);
+  const sorted=valid.slice().sort((a,b)=>choice==='roi'?b.flipRoi-a.flipRoi:choice==='volume'?b.flipDayLowVolume-a.flipDayLowVolume:b.flipRank-a.flipRank);
   const tabs=[['net','High Profit'],['roi','High ROI'],['volume','High Volume']].map(([k,n])=>'<button class="'+(choice===k?'active':'')+'" data-home-rank="'+k+'">'+n+'</button>').join('');
   return section(id,'Top Flip Opportunities','<div class="pump-widget-tabs">'+tabs+'</div>'+(sorted.length?sorted.slice(0,limit).map(itemCard).join(''):empty('No liquid after-tax opportunities in this snapshot.'))+
     '<button class="pump-text-action" data-home-load="1">Show more ↓</button>',u);
@@ -73,11 +72,11 @@ function renderWidget(id,ctx){
  }
  case 'calculator':{
   const e=rows.find(x=>x.id===Number(u.homeCalcId))||best[0]||candidates[0];
-  const t=e?tradeSize(budget,e.buy,e.sell,e.name,e.limit):null;
+  const t=e?.flipRecommended?e:null;
   return section(id,'Quick Flip Calculator','<div class="pump-home-controlrow"><label>Item <select id="pumpCalcItem">'+
     (candidates.slice(0,150).map(r=>'<option value="'+r.id+'"'+(e&&e.id===r.id?' selected':'')+'>'+esc(r.name)+'</option>').join(''))+
-    '</select></label></div>'+(t?'<div class="pump-calculator-stats">'+[['Affordable',fmt(t.affordable)],['4h limit',t.limitKnown?fmt(t.limit):'Unknown'],
-    ['Estimated quantity',fmt(t.quantity)],['Total spent',gp(t.spend)],['GE sale tax / item',gp(t.taxEach)],['Estimated profit',gp(t.profit)]]
+    '</select></label></div>'+(t?'<div class="pump-calculator-stats">'+[['Affordable',fmt(Math.floor(budget/t.flipBuy))],['4h limit',t.flipLimitKnown?fmt(t.limit):'Unknown'],
+    ['Capacity-capped qty',fmt(t.flipUnits)],['Estimated cost',gp(t.flipInvestment)],['GE sale tax / item',gp(t.flipTax)],['Estimated batch profit',gp(t.flipBatchProfit)]]
     .map(([l,v])=>'<span>'+l+' <b>'+v+'</b></span>').join('')+'</div>'+note('Conservative quantity uses your budget and the known 4h buy limit. Actual order filling is not guaranteed.'):
     empty('Select an item once market data loads.'))+
     '<button class="pump-text-action" data-go="flips">Open full Flip Finder →</button>',u);
