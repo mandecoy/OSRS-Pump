@@ -9,14 +9,14 @@ test('filter min and max price / volume and profitable',()=>{const r=[{name:'A',
 test('journal tracks partial sales and 2% GE tax',()=>{const a=journalMetrics([{id:1,name:'Whip',qty:10,soldQty:5,buyPrice:1000,sellPrice:1200}],{1:{low:1100}});assert.equal(a.realized,880);assert.equal(a.locked,5000);assert.equal(a.unrealized,390);const b=journalMetrics([{id:1,name:'Whip',qty:10,soldQty:5,buyPrice:1000,sellPrice:1200}],{1:{buy:1100}});assert.equal(b.unrealized,390);});
 
 import {DEFAULT_FILTER,applyFilters,categoryRows,alchemyRows} from '../v03.js';
-test('market discovery defaults do not hide older or low-volume items',()=>{
- assert.equal(DEFAULT_FILTER.maxAge,undefined);
- assert.equal(DEFAULT_FILTER.profitable,false);
- const rows=Array.from({length:25},(_,i)=>({id:i+1,name:'Item '+i,buy:50000,net:200+i,roi:.03,v1:0,age:600,score:50,dayVol:2,dayGapPct:1,dayGapGp:10,members:false}));
- assert.equal(categoryRows(rows,'margins').length,25);
- assert.equal(applyFilters(categoryRows(rows,'margins'),DEFAULT_FILTER).length,25);
- assert.equal(applyFilters(rows,{...DEFAULT_FILTER,maxPrice:100000}).length,25);
- assert.equal(applyFilters(rows,{...DEFAULT_FILTER,maxPrice:1000}).length,0);
+test('market scanner excludes stale or low-volume anomalies by default but leaves research accessible',()=>{
+ assert.equal(DEFAULT_FILTER.showRisky,false);
+ const rows=Array.from({length:25},(_,i)=>({id:i+1,name:'Item '+i,buy:50000,net:200+i,roi:.03,v1:0,
+ age:600,score:50,dayVol:2,dayGapPct:1,dayGapGp:10,members:false,flipRecommended:false,flipRank:0}));
+ assert.equal(categoryRows(rows,'margins').length,0);
+ assert.equal(applyFilters(rows,DEFAULT_FILTER).length,0);
+ assert.equal(applyFilters(rows,{...DEFAULT_FILTER,showRisky:true,maxPrice:100000}).length,25);
+ assert.equal(applyFilters(rows,{...DEFAULT_FILTER,showRisky:true,maxPrice:1000}).length,0);
 });
 test('alchemy includes items without low trade, costs nature rune and does not charge GE sale tax',()=>{
  const now=Math.floor(Date.now()/1000);
