@@ -288,3 +288,11 @@ h1,h2,h3,h4{color:var(--pump-text)}
 .pump-method-category>span:last-child{font-size:20px;color:#bd9b68}
 .pump-method-note{color:#ae9c80;font-size:10px;display:block;line-height:1.45;margin-top:8px}
 @media(max-width:460px){.pump-method-category-grid{grid-template-columns:1fr}.pump-method-category{min-height:65px}}
+
+/* v0.4.2 flip reliability */
+.pump-execution-detail{display:block;color:#b9a98b;font-size:10px;margin-top:5px;line-height:1.4}
+.pump-item-card.pump-muted{border-left-color:#98664a;opacity:.84}
+.pump-item-card.pump-muted .pump-execution-detail{color:#e5a382}
+.pump-unreliable{padding:12px;border:1px solid #a36a43;background:#38291f;color:#f6c3a4;border-radius:10px;font-size:12px;line-height:1.55}
+.pump-filter-check{display:flex;align-items:center;gap:8px}
+.pump-filter-check input{accent-color:#e7be73}

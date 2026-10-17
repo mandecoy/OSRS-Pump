@@ -21,9 +21,10 @@ export function normalizedOrder(order){
 }
 function itemCard(r){
  const vol=r.dayVol==null?'—':abr(r.dayVol);
+ const isResearch=!r.flipRecommended;
  return '<button class="pump-home-item" type="button" data-open="'+r.id+'"><span class="pump-home-item-name">'+esc(r.name)+
  '<small>24h '+vol+' units · Age '+(Number.isFinite(r.age)?Math.round(r.age)+'m':'—')+'</small></span>'+
- '<span class="'+(r.flipNet>=0?'pump-up':'pump-down')+'">'+(r.flipNet>0?'+':'')+abr(r.flipNet)+' GP<small>'+(Number.isFinite(r.flipRoi)?(r.flipRoi*100).toFixed(1)+'% ROI':'—')+'</small></span></button>';
+ '<span class="'+(r.flipNet>=0?'pump-up':'pump-down')+'">'+(isResearch?'Research only':(r.flipNet>0?'+':'')+abr(r.flipNet)+' GP')+'<small>'+(isResearch?'Insufficient evidence':(Number.isFinite(r.flipRoi)?(r.flipRoi*100).toFixed(1)+'% ROI':'—'))+'</small></span></button>';
 }
 function section(id,label,content,user){
  const w=HOME_WIDGETS.find(x=>x.id===id);
@@ -46,7 +47,7 @@ function renderWidget(id,ctx){
  case 'top':{
   const choice=u.homeRank||'net';
   const sorted=valid.slice().sort((a,b)=>choice==='roi'?b.flipRoi-a.flipRoi:choice==='volume'?b.flipDayLowVolume-a.flipDayLowVolume:b.flipRank-a.flipRank);
-  const tabs=[['net','High Profit'],['roi','High ROI'],['volume','High Volume']].map(([k,n])=>'<button class="'+(choice===k?'active':'')+'" data-home-rank="'+k+'">'+n+'</button>').join('');
+  const tabs=[['net','Best Overall'],['roi','High ROI'],['volume','High Volume']].map(([k,n])=>'<button class="'+(choice===k?'active':'')+'" data-home-rank="'+k+'">'+n+'</button>').join('');
   return section(id,'Top Flip Opportunities','<div class="pump-widget-tabs">'+tabs+'</div>'+(sorted.length?sorted.slice(0,limit).map(itemCard).join(''):empty('No liquid after-tax opportunities in this snapshot.'))+
     '<button class="pump-text-action" data-home-load="1">Show more ↓</button>',u);
  }

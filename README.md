@@ -10,6 +10,14 @@ OSRS Pump is an independent community project. Not affiliated with or endorsed b
 
 The [v0.3 product blueprint](docs/v0.3/README.md) includes all four requested developer specifications: [screen-by-screen OSRS redesign](docs/v0.3/01-SCREENS.md), [prioritized feature backlog](docs/v0.3/02-BACKLOG.md), [UI/component architecture](docs/v0.3/03-COMPONENTS.md) and [advanced market filters/formulas](docs/v0.3/04-FILTERS-AND-FORMULAS.md). **The v0.3 beta implements its theme, Markets discovery categories, item cards and advanced filtering; more advanced analytics, specialty calculators and background notifications remain planned.**
 
+## v0.4.2 Beta 1 — Meaningful ROI & volume-based flipping
+
+- The app no longer recommends items solely because two unrelated completed trades have a large price gap. A conservative candidate requires recent high- and low-side activity, fresh paired quotes, recent aggregate-price consistency, at least 5 GP/item after tax, at least 1% after-tax ROI, and at least 1,000 GP of GP-budget/volume-capped batch potential.
+- Candidates are ranked by **after-tax ROI (45%)**, capped feasible batch GP (35%) and an **Execution Evidence** heuristic (20%). The evidence score is not a probability of execution: it combines activity (40%), trade freshness (25%), quote agreement (20%) and conservative buy-limit/volume-capped capacity (15%).
+- The buy/sell numbers are more conservative than raw latest transaction observations; 5m and 1h averages restrict their ranges, with a further spread buffer. These **are still indicative references, not executable bids or asks**. Real order-book depth is not public.
+- Thin-volume, extreme-spread, stale, suspicious, 1-GP and otherwise low-profit listings are hidden from default flip recommendations. **Include anomalies & low-volume items** is an explicit research-only option showing exclusion reasons and no imaginary realizable profit.
+- The original Quality Score remains as an internal legacy value but is **not** used in the new ranking. Use the visible Execution Evidence score only as a screening heuristic.
+
 ## v0.4.1 Beta 1 — More processing methods and official volume reference
 
 - Eight processing categories: herb cleaning, unfinished potions, plank-making, bar smelting, smithing nails, Grand Exchange armour sets, standard teleport tablets, and unenchanted jewellery crafting.
