@@ -127,8 +127,8 @@ function renderIntel(){
  const section='<div class="card pump-history-card"><div class="pump-history-head"><div><h3>Price history</h3><p>GP per item · '+config.title+' window · '+config.step+' average buckets</p></div></div><div class="pump-history-tabs">'+ranges+'</div>'+chart+'</div>';
  const unavailable='—';
  const stats=x?'<div class="stats">'+
-  metric('Observed buy target',gp(x.buy),'Recent instant sell')+
-  metric('Observed sell target',gp(x.sell),'Recent instant buy')+
+  metric('Latest instant-sell trade',gp(x.buy),'Observed price, not a bid')+
+  metric('Latest instant-buy trade',gp(x.sell),'Observed price, not an ask')+
   metric('Screened profit / item',assessed?.flipRecommended?gp(assessed.flipNet):'Not reliable',assessed?.flipRecommended?'After tax and buffers':'Insufficient trading evidence',assessed?.flipRecommended?'positive':'negative')+
   metric('24h traded volume',x.dayVol==null?'—':compact(x.dayVol),'Completed units · Activity '+stamp(x.age))+
  '</div>':notice('Latest completed high/low prices unavailable; historical points may still be available.');
@@ -142,10 +142,12 @@ function renderIntel(){
   '<div class="item-row"><strong>Last observed transaction age</strong><strong>'+(x?stamp(x.age):unavailable)+'</strong></div>'+
   '<div class="item-row"><strong>GE sale tax / item</strong><strong>'+(current?gp(current.tax):unavailable)+'</strong></div>'+
   '<div class="item-row"><strong>Execution evidence (not fill chance)</strong><strong>'+(assessed?assessed.executionScore+'/100':unavailable)+'</strong></div>'+
+  '<div class="item-row"><strong>Trades in last hour (high / low)</strong><strong>'+(assessed?assessed.flipHourHighVolume+' / '+assessed.flipHourLowVolume:unavailable)+'</strong></div>'+
+  (assessed&&!assessed.flipRecommended?'<p class="pump-unreliable">⚠ Not recommended: '+esc(assessed.flipReasons.join(' · '))+'</p>':'')+
   '<p class="smallnote">Historical extremes are interval averages, not recommended entry/exit prices. Wiki history has no standing order-book depth. 24h traded-unit volume is sourced from the OSRS Wiki aggregate, not Jagex&#39;s 7-day Most Traded ranking. <a href="https://secure.runescape.com/m=itemdb_oldschool/top100?list=0" target="_blank" rel="noopener noreferrer">Jagex official Most Traded (7 days) ↗</a></p></div>'+
   '<div class="card"><div class="section-heading"><h3>Trade action</h3></div><p class="smallnote">Log actual fill prices to calculate realized profits.</p><button class="action" id="newTrade">+ Record a flip</button>'+
   '<div class="divider-x"></div><p class="smallnote">'+esc(m.examine||'Details supplied by the public OSRS Wiki mapping.')+'</p></div></div>';
- $('#intelPage').innerHTML=head('OSRS Pump / Item Intelligence','Item market analysis','Public trade history and price/volume inspection.',buttons)+header+stats+section+intervalMetrics+(x?sizingCard(x,user.tradingGp):'')+analysis;
+ $('#intelPage').innerHTML=head('OSRS Pump / Item Intelligence','Item market analysis','Public trade history and price/volume inspection.',buttons)+header+stats+section+intervalMetrics+(assessed?sizingCard(assessed,user.tradingGp):'')+analysis;
  const sizeForm=$('#sizerForm');if(sizeForm)sizeForm.addEventListener('submit',e=>{e.preventDefault();const amount=Number(new FormData(sizeForm).get('available'));if(!Number.isFinite(amount)||amount<0||!Number.isSafeInteger(Math.floor(amount))){toast('Enter a valid GP amount');return;}user.tradingGp=Math.floor(amount);save();renderIntel();});
   $('#intelWatch').addEventListener('click',()=>{toggleWatch(m.id);renderIntel();});
  $('#newTrade').addEventListener('click',()=>nav('portfolio'));
