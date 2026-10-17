@@ -78,7 +78,7 @@ export function applyFilters(rows,f={}){
  out.sort((a,b)=>{const av=Number(a[key]),bv=Number(b[key]);if(!Number.isFinite(av)&&!Number.isFinite(bv))return a.id-b.id;if(!Number.isFinite(av))return 1;if(!Number.isFinite(bv))return -1;return (av-bv)*direction||a.id-b.id;});
  return out;
 }
-export function categoryRows(rows,id){
+export function categoryRows(rows,id,includeRisky=false){
  const n=s=>s.toLowerCase();
  const match=r=>{
   const s=n(r.name);
@@ -87,10 +87,10 @@ export function categoryRows(rows,id){
    case 'falling':return r.dayGapPct!==null&&r.dayGapPct<0&&r.dayVol>0;
    case 'gainers':return r.dayGapGp!==null&&r.dayGapGp>0;
    case 'losers':return r.dayGapGp!==null&&r.dayGapGp<0;
-   case 'margins':case 'roi':return r.flipRecommended;
-   case 'fast':return r.flipRecommended&&r.v1>0;
-   case 'lowcash':return r.flipRecommended&&r.buy<=100000;
-   case 'expensive':return r.flipRecommended&&r.buy>=10000000;
+   case 'margins':case 'roi':return includeRisky?r.net>0:r.flipRecommended;
+   case 'fast':return (includeRisky?r.net>0:r.flipRecommended)&&r.v1>0;
+   case 'lowcash':return (includeRisky?r.net>0:r.flipRecommended)&&r.buy<=100000;
+   case 'expensive':return (includeRisky?r.net>0:r.flipRecommended)&&r.buy>=10000000;
    case 'volume5':return r.fiveVol!==null&&r.fiveVol>0;
    case 'volume1':return r.v1>0;
    case 'volume24':return r.dayVol!==null&&r.dayVol>0;
@@ -136,14 +136,27 @@ export function alchemyRows(mapping=[],latest={},oneHour={},five={},day={}){
 function pic(r){if(!r.icon)return '<span class="pump-item-fallback">◈</span>';const url='https://oldschool.runescape.wiki/images/'+encodeURIComponent(r.icon.replace(/ /g,'_'));return '<img loading="lazy" alt="" src="'+esc(url)+'" onerror="this.style.display=\'none\'">';}
 function title(t,sub){return '<div class="pump-section-title"><h2>'+esc(t)+'</h2><p>'+esc(sub||'')+'</p></div>';}
 function row(r,ctx){
- const age=Number.isFinite(r.age)?Math.round(r.age)+'m':'Unknown',watched=ctx.user.watchlist.includes(r.id);
- const signals=riskSignals(r),bad=signals.level==='high',net=r.net||0;
- const subtitle=r.alchMode
-  ?'<small>Buy '+short(r.buy)+' · High Alch '+short(r.highalch)+' · Rune '+short(r.natureCost)+'</small>'
-  :'<small>Entry '+short(r.buy)+' · Exit '+short(r.sell)+' gp</small>';
- const units='<small>24h volume '+(r.dayVol===null||r.dayVol===undefined?'—':short(r.dayVol))+' · 1h '+short(r.v1)+' · Age '+age+'</small>';
- const indicator='<span class="pump-risk pump-risk-'+signals.level+'" title="'+esc(signals.flags.join(' · ')||'No major flags in this data snapshot')+'">'+(signals.flags.length?'⚠ '+esc(signals.flags.slice(0,2).join(' · ')):'✓ No major flags')+'</span>';
- return '<article class="pump-item-card '+(bad?'pump-muted':'')+'"><button class="pump-item-main" data-open="'+r.id+'"><span class="pump-sprite">'+pic(r)+'</span><span class="pump-item-summary"><strong>'+esc(r.name)+'</strong>'+subtitle+units+indicator+'</span><span class="pump-gain '+(net>0?'pump-up':'pump-down')+'">'+(net>0?'+':'')+short(net)+'<small>'+(r.alchMode?'gp / alch':'gp / ea after tax')+'</small><small>'+((r.roi||0)*100).toFixed(1)+'% ROI</small></span></button><button class="pump-star" data-watch="'+r.id+'" aria-label="'+(watched?'Remove from':'Add to')+' watchlist">'+(watched?'★':'☆')+'</button></article>';
+ const watched=ctx.user.watchlist.includes(r.id);
+ const good=r.alchMode||r.flipRecommended;
+ const buy=r.alchMode?r.buy:good?r.flipBuy:r.buy;
+ const sell=r.alchMode?r.sell:good?r.flipSell:r.sell;
+ const net=r.alchMode?r.net:good?r.flipNet:null;
+ const roi=r.alchMode?r.roi:good?r.flipRoi:null;
+ const volumes='<small>24h '+(r.dayVol==null?'—':short(r.dayVol))+' units · 1h '+short(r.v1)+'</small>';
+ const text=r.alchMode?
+  '<small>GE buy '+short(r.buy)+' · High Alch '+short(r.highalch)+' · Nature '+short(r.natureCost)+'</small>':
+  '<small>'+(good?'Conservative buy ':'Observed low ')+short(buy)+' · '+(good?'sell ':'observed high ')+short(sell)+' gp</small>';
+ const evidence=r.alchMode?'High Alchemy · Not a GE flip':good?
+  'Execution evidence '+r.executionScore+'/100 · Projected '+short(r.flipBatchProfit)+' GP per capped batch':
+  '⚠ Research only · '+esc((r.flipReasons||[]).slice(0,2).join(' · ')||'No reliable profit estimate');
+ const profit=net!==null?
+  '<span class="pump-gain '+(net>0?'pump-up':'pump-down')+'">'+(net>0?'+':'')+short(net)+
+   '<small>'+(r.alchMode?'gp / alch':'gp / item after tax')+'</small><small>'+(roi*100).toFixed(1)+'% ROI</small></span>':
+  '<span class="pump-gain pump-down">—<small>Unreliable estimate</small></span>';
+ return '<article class="pump-item-card '+(!good?'pump-muted':'')+'"><button class="pump-item-main" data-open="'+r.id+'">'+
+ '<span class="pump-sprite">'+pic(r)+'</span><span class="pump-item-summary"><strong>'+esc(r.name)+'</strong>'+text+volumes+
+ '<small class="pump-execution-detail">'+evidence+'</small></span>'+profit+'</button>'+
+ '<button class="pump-star" data-watch="'+r.id+'" aria-label="'+(watched?'Remove from':'Add to')+' watchlist">'+(watched?'★':'☆')+'</button></article>';
 }
 function list(rows,ctx,limit=10){return rows.length?rows.slice(0,limit).map(r=>row(r,ctx)).join(''):'<div class="pump-empty">No matching items. Try a wider price range, higher trade age, or fewer volume restrictions.</div>';}
 function filtersModal(ctx){
@@ -211,7 +224,7 @@ export function markets(ctx){
  const all=ctx.rows||[],cat=ctx.user.v3Category,info=CATEGORIES.find(x=>x.id===cat);
  if(info&&cat==='processing'){return '<div class="pump-back"><button data-v3-back="1">← Markets</button></div>'+title('Processing calculator','Calculate an item conversion using actual ingredient quantities.')+'<button class="pump-gold" data-go="money">Open Money Making Lab →</button>';}
  if(info){
- const items=cat==='alch'?(ctx.alchRows||[]):categoryRows(all,cat);
+ const items=cat==='alch'?(ctx.alchRows||[]):categoryRows(all,cat,!!ctx.user.v3Filter?.showRisky);
  const f=ctx.user.v3Filter||DEFAULT_FILTER;
  const sorts={rising:'change',falling:'change',gainers:'dayGapGp',losers:'dayGapGp',margins:'net',roi:'roi',fast:'v1',lowcash:'roi',expensive:'net',volume5:'volume5',volume1:'volume1',volume24:'volume24',quiet:'v1',alch:'net'};
  const autoSort=f.sort==='flipRank';
