@@ -38,4 +38,14 @@ jobs:
                 print(f'PROBE {path}: OK count={count}',flush=True)
             except Exception as e:
               print(f'PROBE {path}: {type(e).__name__} {str(e)[:160]}',flush=True)
+
+          for p in ('5m','timeseries?id=4151&lookback=24h','timeseries?id=4151&lookback=7d','timeseries?id=4151&lookback=30d','timeseries?id=4151&lookback=90d','timeseries?id=4151&timestep=1h'):
+            url=f'{base}/api/v2/osrs-hc/{p}'
+            try:
+              req=urllib.request.Request(url,headers=headers)
+              with urllib.request.urlopen(req,timeout=8) as res:
+                body=json.load(res)
+                print(f'ENDPOINT {p}: OK keys={list(body)[:8] if isinstance(body,dict) else "array"} sample={str((body.get("data") or [])[:1] if isinstance(body.get("data"),list) else list((body.get("data") or {}).items())[:1])[:300]}',flush=True)
+            except Exception as e:
+              print(f'ENDPOINT {p}: {type(e).__name__} {str(e)[:150]}',flush=True)
           PY
