@@ -5,7 +5,7 @@
 
 **Free, open-source, local-first Grand Exchange market intelligence for Old School RuneScape.**
 
-> Status: **Android v0.3.1-beta.1 source updates submitted for an automated APK build**, featuring a themed mobile market dashboard, Markets discovery categories and advanced filter drawer. Background Android notifications and order-book analytics are not implemented. Beta APKs are debug-signed and may require reinstalling for future updates.
+> Status: **Android v0.4.3-beta.1 Hardcore Worlds edition**, featuring a themed mobile market dashboard, Markets discovery categories and advanced filter drawer. Background Android notifications and order-book analytics are not implemented. Beta APKs are debug-signed and may require reinstalling for future updates.
 
 OSRS Pump is an independent community project. Not affiliated with or endorsed by Jagex or the OSRS Wiki. Old School RuneScape and RuneScape are trademarks of their respective owners.
 
@@ -127,11 +127,12 @@ The application batches public market fetches, applies caching and does not requ
 
 | Endpoint | Role |
 | --- | --- |
-| `https://prices.runescape.wiki/api/v1/osrs/mapping` | Public item IDs, names, GE buy limits and high-alchemy values |
-| `https://prices.runescape.wiki/api/v1/osrs/latest` | Latest observed instant-buy and instant-sell trades, each with timestamps |
-| `https://prices.runescape.wiki/api/v1/osrs/1h` | Recent hourly average prices and transaction volume |
-| `https://prices.runescape.wiki/api/v1/osrs/5m` | Recent five-minute average prices and transaction volume |
-| `https://prices.runescape.wiki/api/v1/osrs/timeseries?id=4151&timestep=1h` | Historical averages/volume per item |
+| `https://prices.runescape.wiki/api/v2/osrs-hc/mapping` | Public item IDs, names, GE buy limits and high-alchemy values |
+| `https://prices.runescape.wiki/api/v2/osrs-hc/latest` | Latest observed instant-buy and instant-sell trades, each with timestamps |
+| `https://prices.runescape.wiki/api/v2/osrs-hc/1h` | Recent hourly average prices and transaction volume |
+| `https://prices.runescape.wiki/api/v2/osrs-hc/5m` | Recent five-minute average prices and transaction volume |
+| `https://prices.runescape.wiki/api/v2/osrs-hc/24h` | 24-hour average trade prices and completed-unit volumes |
+| `https://prices.runescape.wiki/api/v2/osrs-hc/timeseries?id=4151&lookback=7d` | Historical averages/volume per item |
 
 ### Interpreting prices correctly
 
