@@ -5,6 +5,7 @@ const now=1_780_000_000;
 const p=(offset,h,l,v1=0,v2=0)=>({timestamp:now-offset,avgHighPrice:h,avgLowPrice:l,highPriceVolume:v1,lowPriceVolume:v2});
 test('day/week/month/quarter use real publicly available Wiki bucket intervals',()=>{
  assert.deepEqual(Object.values(WINDOWS).map(w=>w.step),['5m','1h','6h','24h']);
+ assert.deepEqual(Object.values(WINDOWS).map(w=>w.lookback),['24h','7d','30d','6m']);
  assert.deepEqual(Object.values(WINDOWS).map(w=>w.seconds),[86400,604800,2592000,7776000]);
 });
 test('range selection sorts observations, handles sparse data, enforces lookback',()=>{

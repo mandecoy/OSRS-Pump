@@ -1,5 +1,8 @@
 # OSRS Pump
 
+**Hardcore Worlds market edition: uses only the separate `osrs-hc` economy.** All market data requests are routed to `https://prices.runescape.wiki/api/v2/osrs-hc`; there is no regular-world price fallback. The app keeps a separate HC-local portfolio and watchlist namespace, and rejects imports from untagged regular-world backups. Chart endpoints use `lookback=24h`, `7d`, `30d`, or `6m` (with 90-day client filtering). Wiki item links open the Hardcore Worlds price page. Public Wiki v2 data is from completed transactions, not live GE order depth. 
+
+
 **Free, open-source, local-first Grand Exchange market intelligence for Old School RuneScape.**
 
 > Status: **Android v0.3.1-beta.1 source updates submitted for an automated APK build**, featuring a themed mobile market dashboard, Markets discovery categories and advanced filter drawer. Background Android notifications and order-book analytics are not implemented. Beta APKs are debug-signed and may require reinstalling for future updates.

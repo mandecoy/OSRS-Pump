@@ -1,10 +1,10 @@
 /* Public OSRS Wiki /timeseries chart: bucket averages and completed transaction volume.
  * Never call these averages individual-trade extremes or a live order book. */
 export const WINDOWS=Object.freeze({
-  day:{label:'1 Day',title:'24h',seconds:86400,step:'5m'},
-  week:{label:'7 Days',title:'7d',seconds:7*86400,step:'1h'},
-  month:{label:'30 Days',title:'30d',seconds:30*86400,step:'6h'},
-  quarter:{label:'90 Days',title:'90d',seconds:90*86400,step:'24h'}
+  day:{label:'1 Day',title:'24h',seconds:86400,step:'5m',lookback:'24h'},
+  week:{label:'7 Days',title:'7d',seconds:7*86400,step:'1h',lookback:'7d'},
+  month:{label:'30 Days',title:'30d',seconds:30*86400,step:'6h',lookback:'30d'},
+  quarter:{label:'90 Days',title:'90d',seconds:90*86400,step:'24h',lookback:'6m'}
 });
 const WIDTH=640,HEIGHT=252,PAD=12;
 const valid=n=>n!==null&&n!==undefined&&Number.isFinite(Number(n))&&Number(n)>0;
@@ -43,7 +43,7 @@ export function detailsHTML(point,range){
  if(!point)return '<p>No historical sample selected.</p>';
  const a=point.highPriceVolume,b=point.lowPriceVolume;
  const total=a==null&&b==null?'—':volume((Number(a)||0)+(Number(b)||0));
- return '<div class="pump-chart-detail-time">'+dateLabel(point.timestamp,range,true)+' · '+(WINDOWS[range]||WINDOWS.day).step+' sample</div>'+
+ return '<div class="pump-chart-detail-time">'+dateLabel(point.timestamp,range,true)+' · historical aggregate</div>'+
  '<div class="pump-chart-detail-grid">'+
  '<span><small>Instant-buy avg (high)</small><strong class="pump-price-high">'+numberOrDash(point.avgHighPrice)+'</strong></span>'+
  '<span><small>Instant-sell avg (low)</small><strong class="pump-price-low">'+numberOrDash(point.avgLowPrice)+'</strong></span>'+

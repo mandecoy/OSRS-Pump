@@ -108,8 +108,8 @@ export function home(ctx){
  const order=normalizedOrder(user.homeWidgets);
  const hidden=Array.isArray(user.homeHidden)?user.homeHidden:[];
  const active=rows.filter(x=>x.v1>0).length,volume=rows.reduce((sum,x)=>sum+(x.dayVol||0),0);
- const summary='<div class="pump-hero"><small>OSRS PUMP · GRAND EXCHANGE</small><h2>Your trading <em>command center.</em></h2><p>Public market observations · After-tax estimates · Local-first tools</p></div>'+
- '<div class="pump-ticker">◆ '+fmt(rows.length)+' price pairs · '+fmt(active)+' items with 1h activity · Completed trades ≠ guaranteed prices</div>'+
+ const summary='<div class="pump-hero"><small>OSRS PUMP · HARDCORE WORLDS</small><h2>Your trading <em>command center.</em></h2><p>Separate Hardcore Worlds economy · Live Wiki prices · After-tax estimates</p></div>'+
+ '<div class="pump-ticker">◆ '+fmt(rows.length)+' price pairs · '+fmt(active)+' items with 1h activity · Hardcore-only completed trades ≠ guaranteed offers</div>'+
  '<div class="pump-overview">'+[['Priced items',fmt(rows.length)],['Active items (1h)',fmt(active)],['24h traded units',abr(volume)],['Watchlist',fmt(user.watchlist.length)]]
   .map(([label,v])=>'<div class="pump-metric"><small>'+label+'</small><strong>'+v+'</strong></div>').join('')+'</div>'+
  '<div class="pump-shortcuts">'+[['flips','⚖','Flip Finder'],['markets','◆','Markets'],['portfolio','▣','Portfolio'],['money','⚒','Processing']]

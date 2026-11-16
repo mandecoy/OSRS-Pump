@@ -7,11 +7,14 @@ import * as DASH from './dashboard.js';
 import * as PROC from './processing.js';
 import * as SCREEN from './flip-scanner.js';
 const $=selector=>document.querySelector(selector);
-const names={dashboard:'Market Overview',markets:'Explore Markets',flips:'Advanced Flip Finder',intel:'Item Intelligence',portfolio:'Trade Portfolio',watchlist:'Watchlist & Alerts',money:'Money-Making Methods',settings:'Settings & Sources'};
-const KEY='osrs-pump-v1';
+const names={dashboard:'Hardcore Worlds Market',markets:'Explore Markets',flips:'Advanced Flip Finder',intel:'Item Intelligence',portfolio:'Trade Portfolio',watchlist:'Watchlist & Alerts',money:'Money-Making Methods',settings:'Settings & Sources'};
+// Use independent local storage for the new Hardcore economy; do not reuse main-game trades.
+const KEY='osrs-pump-hc-v1';
+const MARKET='osrs-hc';
+const MARKET_URL='https://prices.runescape.wiki/osrs-hc';
 const makeId=()=>globalThis.crypto?.randomUUID?.()||`local-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 const defaults={page:'dashboard',watchlist:[],alerts:[],trades:[],selected:4151,historyStep:'1h',historyWindow:'day',filter:{sort:'score',profitable:true,minScore:50},v3Filter:{...V03.DEFAULT_FILTER},v3Category:null,v3Limit:10,v3FilterRevision:3,alchLimit:10,process:{input:1000,output:1500,inputQty:1,outputQty:1,actionsPerHour:300},tradingGp:1000000,watchLimit:10,homeWidgets:DASH.normalizedOrder(),homeHidden:[],homeRank:'net',homeLoad:5,homeCalcId:null,homeCustomize:false,processKind:'all',processSort:'net',processProfitable:false,processMinProfit:null,processRate:1200,processLimit:10};
-function loadLocal(){try{const x=JSON.parse(localStorage.getItem(KEY)||'{}');return {...defaults,...x,filter:{...defaults.filter,...x.filter},v3Filter:x.v3FilterRevision===3?{...V03.DEFAULT_FILTER,...x.v3Filter}:{...V03.DEFAULT_FILTER},v3Limit:10,v3FilterRevision:2};}catch{return {...defaults};}}
+function loadLocal(){try{const x=JSON.parse(localStorage.getItem(KEY)||'{}');return {...defaults,...x,filter:{...defaults.filter,...x.filter},v3Filter:x.v3FilterRevision===3?{...V03.DEFAULT_FILTER,...x.v3Filter}:{...V03.DEFAULT_FILTER},v3Limit:10,v3FilterRevision:3};}catch{return {...defaults};}}
 const user=loadLocal();
 const state={mapping:[],latest:{},h:{},five:{},day:{},market:[],byId:{},history:[],historyId:null,historyStep:null,busy:false,error:null,loadedAt:0,alchRows:[],watchHistory:{},historyLoading:new Set(),recipes:[]};
 const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -20,7 +23,7 @@ const head=(eyebrow,title,description,action='')=>`<div class="heading"><div><di
 const notice=s=>`<div class="info-bar">${s}</div>`;
 const empty=(t,d)=>`<div class="emptystate"><strong>${t}</strong>${d}</div>`;
 const field=(label,name,value='',placeholder='',type='number')=>`<div class="field"><label for="f-${esc(name)}">${esc(label)}</label><input id="f-${esc(name)}" name="${esc(name)}" type="${type}" value="${esc(value)}" placeholder="${esc(placeholder)}" ${type==='number'?'min="0"':''}></div>`;
-const titleLink=(id)=>`<a target="_blank" rel="noopener" href="https://prices.runescape.wiki/osrs/item/${id}">Wiki item prices ↗</a>`;
+const titleLink=(id)=>`<a target="_blank" rel="noopener" href="https://prices.runescape.wiki/osrs-hc/item/${id}">Wiki item prices ↗</a>`;
 function save(){localStorage.setItem(KEY,JSON.stringify({page:user.page,watchlist:user.watchlist,alerts:user.alerts,trades:user.trades,selected:user.selected,historyStep:user.historyStep,historyWindow:user.historyWindow,filter:user.filter,v3Filter:user.v3Filter,v3Category:user.v3Category,v3Limit:user.v3Limit,v3FilterRevision:user.v3FilterRevision,alchLimit:user.alchLimit,process:user.process,tradingGp:user.tradingGp,watchLimit:user.watchLimit,homeWidgets:user.homeWidgets,homeHidden:user.homeHidden,homeRank:user.homeRank,homeLoad:user.homeLoad,homeCalcId:user.homeCalcId,processKind:user.processKind,processSort:user.processSort,processProfitable:user.processProfitable,processMinProfit:user.processMinProfit,processRate:user.processRate,processLimit:user.processLimit}));}
 let toastTimer;
 function toast(s){const el=$('#toast');el.textContent=s;el.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('show'),4000);}
@@ -68,7 +71,7 @@ function renderPage(){switch(user.page){case 'dashboard':$('#dashboardPage').inn
 function status(){const date=state.loadedAt?new Date(state.loadedAt).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):'Not synced';$('#lastSync').textContent=state.busy?'Syncing Wiki data…':date;$('#refresh').disabled=state.busy;}
 async function fetchJson(path){const res=await fetch('/api/'+path,{cache:'no-store'});const data=await res.json().catch(()=>({error:'Non-JSON response'}));if(!res.ok)throw new Error(data.detail||data.error||`HTTP ${res.status}`);return data;}
 async function loadMarket(){if(state.busy)return;state.busy=true;state.error=null;status();renderPage();try{
- const [mapping,latest,h,five,day]=await Promise.all([fetchJson('mapping'),fetchJson('latest'),fetchJson('1h'),fetchJson('5m'),fetchJson('24h').catch(()=>({data:{}}))]);
+ const [mapping,latest,h,five,day]=await Promise.all([fetchJson('mapping'),fetchJson('latest'),fetchJson('1h'),fetchJson('5m'),fetchJson('24h')]);
  state.mapping=mapping;state.latest=latest;state.h=h;state.five=five;state.day=day;state.market=SCREEN.assessMarket(V03.decorate(mapMarket(mapping,latest,h,five),h,five,day),h,five,day,Number(user.tradingGp)||0);
  state.byId=Object.fromEntries(state.market.map(x=>[x.id,x]));state.alchRows=V03.alchemyRows(mapping,latest,h,five,day);state.recipes=PROC.evaluateRecipes(mapping,latest,day);state.loadedAt=Date.now();evaluateAlerts();if(user.alerts.some(a=>a.metric==='change24'))void ensureWatchHistory();
  }catch(e){state.error=e.message;toast('Market feed error: '+e.message);}finally{state.busy=false;status();renderPage();}}
@@ -93,10 +96,10 @@ function selectItem(id){const m=lookup(id);if(!m){toast('Item not found in curre
 async function loadHistory(){
  const id=Number(user.selected),range=HISTORY.WINDOWS[user.historyWindow]?user.historyWindow:'day';
  if(!id||!state.mapping.length)return;
- const step=HISTORY.WINDOWS[range].step;
- state.historyId=id;state.historyStep=step;state.historyWindow=range;state.history=[];renderIntel();
+ const lookback=HISTORY.WINDOWS[range].lookback;
+ state.historyId=id;state.historyStep=lookback;state.historyWindow=range;state.history=[];renderIntel();
  try{
-  const d=await fetchJson('timeseries?id='+id+'&step='+step);
+  const d=await fetchJson('timeseries?id='+id+'&lookback='+lookback);
   if(state.historyId===id&&state.historyWindow===range){
    state.history=Array.isArray(d.data)?d.data:[];renderIntel();
   }
@@ -119,12 +122,12 @@ function renderIntel(){
  const assessed=x?SCREEN.readyFlip(x,Number(user.tradingGp)||0):null;
  const icon=m.icon?'https://oldschool.runescape.wiki/images/'+encodeURIComponent(String(m.icon).replace(/ /g,'_')):'';
  const iconTag=icon?'<img src="'+esc(icon)+'" loading="lazy" alt="'+esc(m.name)+' icon" onerror="this.style.display=\'none\'">':'◆';
- const wiki='https://prices.runescape.wiki/osrs/item/'+encodeURIComponent(m.id);
+ const wiki=MARKET_URL+'/item/'+encodeURIComponent(m.id);
  const buttons='<div class="pump-detail-actions"><a class="action secondary pump-wiki-button" href="'+wiki+'" target="_blank" rel="noopener noreferrer">↗ OSRS Wiki Prices</a><button class="action secondary" id="intelWatch">'+(user.watchlist.includes(m.id)?'★ Watching':'☆ Watch')+'</button></div>';
  const header='<div class="pump-detail-item"><div class="pump-detail-icon">'+iconTag+'</div><div class="pump-detail-names"><small>GRAND EXCHANGE ITEM</small><h2>'+esc(m.name)+'</h2><span>Item #'+Number(m.id)+' · '+(m.members?'Members':'Free-to-play')+'</span></div></div>';
  const ranges=Object.entries(HISTORY.WINDOWS).map(([key,v])=>'<button type="button" class="'+(range===key?'active':'')+'" data-chart-window="'+key+'" aria-pressed="'+(range===key?'true':'false')+'">'+v.label+'</button>').join('');
  const chart=source.length?plotHistory(samples,range):empty('Loading price history','Loading publicly sourced history for this item and interval.');
- const section='<div class="card pump-history-card"><div class="pump-history-head"><div><h3>Price history</h3><p>GP per item · '+config.title+' window · '+config.step+' average buckets</p></div></div><div class="pump-history-tabs">'+ranges+'</div>'+chart+'</div>';
+ const section='<div class="card pump-history-card"><div class="pump-history-head"><div><h3>Hardcore Worlds price history</h3><p>GP per item · '+config.title+' window · aggregate trade prices (bucket duration varies)</p></div></div><div class="pump-history-tabs">'+ranges+'</div>'+chart+'</div>';
  const unavailable='—';
  const stats=x?'<div class="stats">'+
   metric('Latest instant-sell trade',gp(x.buy),'Observed price, not a bid')+
@@ -147,7 +150,7 @@ function renderIntel(){
   '<p class="smallnote">Historical extremes are interval averages, not recommended entry/exit prices. Wiki history has no standing order-book depth. 24h traded-unit volume is sourced from the OSRS Wiki aggregate, not Jagex&#39;s 7-day Most Traded ranking. <a href="https://secure.runescape.com/m=itemdb_oldschool/top100?list=0" target="_blank" rel="noopener noreferrer">Jagex official Most Traded (7 days) ↗</a></p></div>'+
   '<div class="card"><div class="section-heading"><h3>Trade action</h3></div><p class="smallnote">Log actual fill prices to calculate realized profits.</p><button class="action" id="newTrade">+ Record a flip</button>'+
   '<div class="divider-x"></div><p class="smallnote">'+esc(m.examine||'Details supplied by the public OSRS Wiki mapping.')+'</p></div></div>';
- $('#intelPage').innerHTML=head('OSRS Pump / Item Intelligence','Item market analysis','Public trade history and price/volume inspection.',buttons)+header+stats+section+intervalMetrics+(assessed?sizingCard(assessed,user.tradingGp):'')+analysis;
+ $('#intelPage').innerHTML=head('OSRS Pump / Item Intelligence','Hardcore Worlds item market analysis','Hardcore-only trade history and volume inspection.',buttons)+header+stats+section+intervalMetrics+(assessed?sizingCard(assessed,user.tradingGp):'')+analysis;
  const sizeForm=$('#sizerForm');if(sizeForm)sizeForm.addEventListener('submit',e=>{e.preventDefault();const amount=Number(new FormData(sizeForm).get('available'));if(!Number.isFinite(amount)||amount<0||!Number.isSafeInteger(Math.floor(amount))){toast('Enter a valid GP amount');return;}user.tradingGp=Math.floor(amount);save();renderIntel();});
   $('#intelWatch').addEventListener('click',()=>{toggleWatch(m.id);renderIntel();});
  $('#newTrade').addEventListener('click',()=>nav('portfolio'));
@@ -211,7 +214,7 @@ async function ensureWatchHistory(){
    if(state.historyLoading.has(id))return;
    state.historyLoading.add(id);
    try{
-    const result=await fetchJson('timeseries?id='+id+'&step=5m');
+    const result=await fetchJson('timeseries?id='+id+'&lookback=24h');
     state.watchHistory[id]={summary:historical24h(result.data),when:Date.now()};
    }catch(error){
     state.watchHistory[id]={summary:null,error:String(error.message||error),when:Date.now()};
@@ -273,10 +276,10 @@ function renderMoney(){const natureId=state.mapping.find(x=>x.name.toLowerCase()
  for(const el of document.querySelectorAll('#moneyPage #processInputs [name]'))el.addEventListener('change',()=>{user.process[el.name]=Math.max(0,Number(el.value)||0);save();renderMoney();});
 }
 function download(data,name){const u=URL.createObjectURL(new Blob([data],{type:'application/json'}));const a=document.createElement('a');a.href=u;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),1000);}
-function renderSettings(){$('#settingsPage').innerHTML=head('OSRS Pump / Configuration','Settings & Sources','Your watchlists and trade history are stored only in your browser on this device.')+
- `<div class="split"><div class="card"><div class="section-heading"><h3>Backup your local market workspace</h3></div><p class="smallnote kicker">Export or restore trades, watchlists, alert settings and preferences. Price feeds stay public; personal entries are not uploaded.</p><div class="gap8"><button class="action" id="export">Export JSON</button><label class="action secondary" for="import-file" style="cursor:pointer">Import JSON</label><input type="file" id="import-file" accept="application/json,.json" hidden></div><div class="divider-x"></div><button class="button-link danger" id="clearData">Erase local portfolio / settings</button></div><div class="card"><div class="section-heading"><h3>Public data & limitations</h3></div><div class="item-row"><strong>OSRS Wiki API</strong><a href="https://prices.runescape.wiki/" target="_blank" rel="noopener">Price project ↗</a></div><div class="item-row"><strong>OSRS Wiki</strong><a href="https://oldschool.runescape.wiki/" target="_blank" rel="noopener">Public guides ↗</a></div><div class="item-row"><strong>Source repository</strong><a href="https://github.com/mandecoy/OSRS-Pump" target="_blank" rel="noopener">OSRS Pump ↗</a></div><div class="item-row"><strong>API refresh</strong><strong>Cached 1–2 minutes</strong></div><p class="smallnote">OSRS Wiki real-time API and historical averages, not live buy/sell order depth. The Wiki 24h per-item volume and Jagex's official 7-day Most Traded table use different time windows and should never be displayed as interchangeable. Volume is transaction volume, not available liquidity. App displays heuristic scores, not financial certainty. Local notification checks happen only while the page is open. Not affiliated with Jagex.</p></div></div>`;
- $('#export').addEventListener('click',()=>download(JSON.stringify({app:'OSRS-Pump',version:1,exportedAt:new Date().toISOString(),user},null,2),'osrs-pump-backup.json'));
- $('#import-file').addEventListener('change',async e=>{const file=e.target.files?.[0];if(!file)return;try{const data=JSON.parse(await file.text());if(data.app!=='OSRS-Pump'||data.version!==1||!Array.isArray(data.user?.trades)||!Array.isArray(data.user?.watchlist)||!Array.isArray(data.user?.alerts))throw Error('Invalid backup');Object.assign(user,{...defaults,...data.user});save();nav('dashboard');toast('Local backup restored');}catch(err){toast('Import failed: '+err.message);}});
+function renderSettings(){$('#settingsPage').innerHTML=head('OSRS Pump / Hardcore Worlds','Settings & Sources','Hardcore Worlds prices and local trade data are kept separate from the regular OSRS economy.')+
+ `<div class="split"><div class="card"><div class="section-heading"><h3>Backup your local market workspace</h3></div><p class="smallnote kicker">Export or restore trades, watchlists, alert settings and preferences. Price feeds stay public; personal entries are not uploaded.</p><div class="gap8"><button class="action" id="export">Export JSON</button><label class="action secondary" for="import-file" style="cursor:pointer">Import JSON</label><input type="file" id="import-file" accept="application/json,.json" hidden></div><div class="divider-x"></div><button class="button-link danger" id="clearData">Erase local portfolio / settings</button></div><div class="card"><div class="section-heading"><h3>Public data & limitations</h3></div><div class="item-row"><strong>Hardcore Worlds Wiki API</strong><a href="https://prices.runescape.wiki/osrs-hc" target="_blank" rel="noopener">Price project ↗</a></div><div class="item-row"><strong>OSRS Wiki</strong><a href="https://oldschool.runescape.wiki/" target="_blank" rel="noopener">Public guides ↗</a></div><div class="item-row"><strong>Source repository</strong><a href="https://github.com/mandecoy/OSRS-Pump" target="_blank" rel="noopener">OSRS Pump ↗</a></div><div class="item-row"><strong>API refresh</strong><strong>Cached 1–2 minutes</strong></div><p class="smallnote">Hardcore Worlds OSRS Wiki API v2 only, not regular OSRS GE prices. Historical trade aggregates do not represent standing buy/sell order depth. The Wiki 24h per-item volume and Jagex's official 7-day Most Traded table use different time windows and should never be displayed as interchangeable. Volume is transaction volume, not available liquidity. App displays heuristic scores, not financial certainty. Local notification checks happen only while the page is open. Not affiliated with Jagex.</p></div></div>`;
+ $('#export').addEventListener('click',()=>download(JSON.stringify({app:'OSRS-Pump',market:MARKET,version:1,exportedAt:new Date().toISOString(),user},null,2),'osrs-pump-hardcore-worlds-backup.json'));
+ $('#import-file').addEventListener('change',async e=>{const file=e.target.files?.[0];if(!file)return;try{const data=JSON.parse(await file.text());if(data.app!=='OSRS-Pump'||data.market!==MARKET||data.version!==1||!Array.isArray(data.user?.trades)||!Array.isArray(data.user?.watchlist)||!Array.isArray(data.user?.alerts))throw Error('Only OSRS Pump Hardcore Worlds backups can be imported here');Object.assign(user,{...defaults,...data.user});save();nav('dashboard');toast('Local backup restored');}catch(err){toast('Import failed: '+err.message);}});
  $('#clearData').addEventListener('click',()=>{if(!confirm('Delete all local OSRS Pump trades, alerts and watchlists? Export first if you want a backup.'))return;localStorage.removeItem(KEY);Object.assign(user,structuredClone(defaults));nav('settings');toast('Local user data erased');});}
 document.addEventListener('click',e=>{const node=e.target.closest('[data-page],[data-go],[data-watch],[data-open],[data-delete-alert],[data-delete-trade],[data-preset],[data-alch-more]');if(!node)return;
  if(node.dataset.alchMore){user.alchLimit=(user.alchLimit||10)+10;save();renderMoney();return;}

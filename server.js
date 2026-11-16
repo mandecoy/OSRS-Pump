@@ -4,7 +4,8 @@ import {readFile} from 'node:fs/promises';
 import {extname,resolve,sep} from 'node:path';
 
 const root = process.cwd();
-const base = 'https://prices.runescape.wiki/api/v1/osrs';
+// Hardcore Worlds use a completely separate GE economy. No main-world price fallback.
+const base = 'https://prices.runescape.wiki/api/v2/osrs-hc';
 const agent = `OSRS-Pump/0.1 (https://github.com/mandecoy/OSRS-Pump; ${process.env.OSRS_PUMP_CONTACT || 'GitHub issues'})`;
 const port = Number(process.env.PORT || 8765);
 const cache = new Map();
@@ -14,9 +15,9 @@ function routeApi(path,searchParams){
   const paths={'/api/mapping':['mapping',24*3600_000],'/api/latest':['latest',60_000],'/api/1h':['1h',2*60_000],'/api/5m':['5m',60_000],'/api/24h':['24h',30*60_000]};
   if(paths[path]){const [url,ttl]=paths[path];return {url:`${base}/${url}`,ttl};}
   if(path==='/api/timeseries'){
-    const id=searchParams.get('id'),step=searchParams.get('step')||'1h';
-    if(!/^\d{1,8}$/.test(id||'') || !['5m','1h','6h','24h'].includes(step))return null;
-    return {url:`${base}/timeseries?id=${id}&timestep=${step}`,ttl:3*60_000};
+    const id=searchParams.get('id'),lookback=searchParams.get('lookback')||'24h';
+    if(!/^\d{1,8}$/.test(id||'') || !['6h','24h','7d','30d','6m','1y'].includes(lookback))return null;
+    return {url:`${base}/timeseries?id=${id}&lookback=${lookback}`,ttl:3*60_000};
   }
   return null;
 }
@@ -50,4 +51,4 @@ http.createServer(async(req,res)=>{
   const path=resolve(root,'.'+requestPath);
   if(!path.startsWith(root+sep)){res.writeHead(403);res.end();return;}
   try{const body=await readFile(path);res.writeHead(200,{'Content-Type':mime[extname(path)]||'application/octet-stream','Cache-Control':'no-cache','X-Content-Type-Options':'nosniff'});res.end(body);}catch{res.writeHead(404);res.end('Not found');}
-}).listen(port,'0.0.0.0',()=>console.log(`OSRS Pump at http://localhost:${port} — Wiki market data is proxied with a descriptive User-Agent`));
+}).listen(port,'0.0.0.0',()=>console.log(`OSRS Pump at http://localhost:${port} — Hardcore Worlds Wiki market data is proxied with a descriptive User-Agent`));

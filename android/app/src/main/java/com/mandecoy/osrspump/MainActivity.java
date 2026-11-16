@@ -32,7 +32,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public final class MainActivity extends Activity {
     private static final String HOST = "appassets.androidplatform.net";
     private static final String APP_URL = "https://" + HOST + "/assets/index.html";
-    private static final String WIKI_API = "https://prices.runescape.wiki/api/v1/osrs/";
+    private static final String WIKI_API = "https://prices.runescape.wiki/api/v2/osrs-hc/";
     private static final int OPEN_FILE = 201;
     private static final int SAVE_FILE = 202;
     private final Map<String, CacheEntry> cache = new ConcurrentHashMap<>();
@@ -148,13 +148,14 @@ public final class MainActivity extends Activity {
             case "/api/24h": endpoint = "24h"; ttl = 1_800_000L; break;
             case "/api/timeseries":
                 String id = uri.getQueryParameter("id");
-                String step = uri.getQueryParameter("step");
-                if (step == null || step.isEmpty()) step = "1h";
+                String lookback = uri.getQueryParameter("lookback");
+                if (lookback == null || lookback.isEmpty()) lookback = "24h";
                 if (id == null || !id.matches("[0-9]{1,8}") ||
-                    !(step.equals("5m") || step.equals("1h") || step.equals("6h") || step.equals("24h"))) {
-                    return failure(400, "Bad Request", "Invalid history request");
+                    !(lookback.equals("6h") || lookback.equals("24h") || lookback.equals("7d") ||
+                      lookback.equals("30d") || lookback.equals("6m") || lookback.equals("1y"))) {
+                    return failure(400, "Bad Request", "Invalid Hardcore Worlds history request");
                 }
-                endpoint = "timeseries?id=" + id + "&timestep=" + step;
+                endpoint = "timeseries?id=" + id + "&lookback=" + lookback;
                 ttl = 180_000L;
                 break;
             default: return failure(400, "Bad Request", "Unknown API endpoint");
@@ -170,7 +171,7 @@ public final class MainActivity extends Activity {
             connection.setReadTimeout(12000);
             connection.setRequestProperty("Accept", "application/json");
             connection.setRequestProperty("User-Agent",
-                "OSRS-Pump-Android/0.2 (https://github.com/mandecoy/OSRS-Pump; GitHub issues)");
+                "OSRS-Pump-Android/0.4.3-HC (https://github.com/mandecoy/OSRS-Pump; GitHub issues)");
             int code = connection.getResponseCode();
             if (code < 200 || code >= 300) throw new Exception("Wiki returned " + code);
             ByteArrayOutputStream output = new ByteArrayOutputStream();

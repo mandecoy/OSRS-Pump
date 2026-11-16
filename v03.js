@@ -207,7 +207,7 @@ export function home(ctx){
  +'<div class="pump-hero"><small>THE GRAND EXCHANGE · PUBLIC MARKET DATA</small><h2>Find your next <em>flip.</em></h2><p>Every publicly priced item, calculated after GE tax.</p></div>'
  +'<div class="pump-ticker"><span>◆</span> Wiki price feed &nbsp;·&nbsp; '+market.length.toLocaleString()+' priced items &nbsp;·&nbsp; '+active.toLocaleString()+' with 1h trade activity &nbsp;·&nbsp; Observed prices ≠ guaranteed offers</div>'
  +'<div class="pump-section-heading"><h3>Market overview</h3><span>Current snapshot</span></div><div class="pump-overview">'
- +stat('Priced items',money(market.length),'From OSRS Wiki','')
+ +stat('Priced items',money(market.length),'Hardcore Worlds Wiki feed','')
  +stat('Active in 1h',money(active),'Observed trade volume','')
  +stat('24h traded units',day?short(day):'—',day?'Summed item volumes':'Not available','')
  +stat('Fresh flip ideas',money(fresh.length),'Within 60m · net positive','')
