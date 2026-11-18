@@ -1,166 +1,150 @@
-/* OSRS Pump customizable home widgets. Public price observations, local-only preferences. */
-import {tradeSize,journalMetrics,riskSignals} from './logic.js';
-const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
-const fmt=v=>v===null||v===undefined||!Number.isFinite(Number(v))?'—':Math.round(Number(v)).toLocaleString('en-US');
-const abr=v=>v===null||v===undefined||!Number.isFinite(Number(v))?'—':Math.abs(v)>1e9?(v/1e9).toFixed(2)+'B':Math.abs(v)>=1e6?(v/1e6).toFixed(2)+'M':Math.abs(v)>=1e3?(v/1e3).toFixed(1)+'K':fmt(v);
-const gp=v=>v===null||v===undefined||!Number.isFinite(Number(v))?'—':fmt(v)+' gp';
+/* OSRS Pump Hardcore Worlds: flipping-only dashboard.
+ * Every priced item remains accessible. The dashboard prioritizes plausible
+ * budget-sized opportunities and keeps the old complex widgets optional.
+ */
+import {journalMetrics} from './logic.js';
+const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
+const gp=x=>x==null||!Number.isFinite(Number(x))?'—':Math.round(Number(x)).toLocaleString('en-US')+' gp';
+const n=x=>x==null||!Number.isFinite(Number(x))?'—':Math.round(Number(x)).toLocaleString('en-US');
+const small=x=>x==null||!Number.isFinite(Number(x))?'—':Math.abs(x)>=1e9?(x/1e9).toFixed(2)+'B':Math.abs(x)>=1e6?(x/1e6).toFixed(2)+'M':Math.abs(x)>=1e3?(x/1e3).toFixed(1)+'K':n(x);
 export const HOME_WIDGETS=[
- {id:'budget',title:'Flips for Your GP',icon:'◈',desc:'Budget-sized after-tax opportunities'},
- {id:'top',title:'Top Flip Opportunities',icon:'◆',desc:'High margin, ROI and volume'},
- {id:'movers',title:'Market Movers',icon:'↗',desc:'Compared with daily average'},
- {id:'watch',title:'Watchlist Snapshot',icon:'☆',desc:'Your favorite items'},
- {id:'portfolio',title:'Portfolio Performance',icon:'▣',desc:'Profit and open positions'},
- {id:'calculator',title:'Quick Flip Calculator',icon:'⊞',desc:'Cash and buy-limit sized estimate'},
- {id:'methods',title:'Money-Making Highlights',icon:'⚒',desc:'Alchemy and recipe processing'},
- {id:'risks',title:'Market Reliability',icon:'⚠',desc:'Alerts and potential quote issues'}
+ {id:'top',title:'Top Flip Ideas',icon:'◆'},
+ {id:'budget',title:'Ideas for Your GP',icon:'◈'},
+ {id:'watch',title:'Watchlist',icon:'☆'},
+ {id:'portfolio',title:'Portfolio',icon:'▣'},
+ {id:'movers',title:'Market Movers',icon:'↗'},
+ {id:'calculator',title:'Trade Size Calculator',icon:'⊞'}
 ];
 export function normalizedOrder(order){
  const ids=HOME_WIDGETS.map(w=>w.id);
  if(!Array.isArray(order))return ids;
  return [...new Set(order.filter(id=>ids.includes(id)))].concat(ids.filter(id=>!order.includes(id)));
 }
-function itemCard(r){
- const vol=r.dayVol==null?'—':abr(r.dayVol);
- const isResearch=!r.flipRecommended;
- return '<button class="pump-home-item" type="button" data-open="'+r.id+'"><span class="pump-home-item-name">'+esc(r.name)+
- '<small>24h '+vol+' units · Age '+(Number.isFinite(r.age)?Math.round(r.age)+'m':'—')+'</small></span>'+
- '<span class="'+(r.flipNet>=0?'pump-up':'pump-down')+'">'+(isResearch?'Research only':(r.flipNet>0?'+':'')+abr(r.flipNet)+' GP')+'<small>'+(isResearch?'Insufficient evidence':(Number.isFinite(r.flipRoi)?(r.flipRoi*100).toFixed(1)+'% ROI':'—'))+'</small></span></button>';
-}
-function section(id,label,content,user){
- const w=HOME_WIDGETS.find(x=>x.id===id);
- return '<section class="pump-home-widget" data-home-widget="'+id+'"><div class="pump-home-widget-title"><h3>'+w.icon+' '+label+'</h3>'+
- (user.homeCustomize?'<div><button type="button" data-home-move="'+id+':up" aria-label="Move '+id+' up">↑</button><button type="button" data-home-move="'+id+':down" aria-label="Move '+id+' down">↓</button><button type="button" data-home-hide="'+id+'" aria-label="Hide '+id+'">✕</button></div>':'')+
- '</div>'+content+'</section>';
-}
 const note=s=>'<p class="pump-caption">'+s+'</p>';
 const empty=s=>'<div class="pump-empty">'+esc(s)+'</div>';
+function itemCard(r){
+ const margin=Number(r.net)||0,activity=r.flipGrade||'No recent volume';
+ const visible24=r.dayVol==null?'—':small(r.dayVol);
+ return '<button class="pump-home-item" data-open="'+r.id+'"><span class="pump-home-item-name">'+esc(r.name)+
+ '<small>Buy '+n(r.buy)+' · Sell '+n(r.sell)+' · 24h '+visible24+' · '+esc(activity)+'</small></span>'+
+ '<span class="'+(margin>0?'pump-up':'pump-down')+'">'+(margin>0?'+':'')+gp(margin)+
+ '<small>'+(Number.isFinite(r.roi)?(r.roi*100).toFixed(1)+'% ROI':'—')+'</small></span></button>';
+}
+function section(id,title,inner,user){
+ return '<section class="pump-home-widget" data-home-widget="'+id+'"><div class="pump-home-widget-title"><h3>'+title+'</h3>'+
+ (user.homeCustomize?'<div><button data-home-move="'+id+':up" aria-label="Move up">↑</button><button data-home-move="'+id+':down" aria-label="Move down">↓</button><button data-home-hide="'+id+'" aria-label="Hide widget">✕</button></div>':'')+
+ '</div>'+inner+'</section>';
+}
 function renderWidget(id,ctx){
- const u=ctx.user,rows=ctx.rows||[], budget=Number(u.tradingGp)||0;
- const valid=rows.filter(x=>x.flipRecommended&&x.flipBuy>0&&x.flipRoi>=0.01);
- const best=valid.filter(x=>x.flipUnits>0).sort((a,b)=>b.flipRank-a.flipRank||b.flipBatchProfit-a.flipBatchProfit);
- const candidates=valid.slice().sort((a,b)=>b.flipRank-a.flipRank);
- const limit=u.homeLoad||5;
+ const u=ctx.user,rows=ctx.rows||[],budget=Math.max(0,Number(u.tradingGp)||0),count=u.homeLoad||5;
+ const profitable=rows.filter(r=>r.net>0).sort((a,b)=>b.flipRank-a.flipRank||b.flipBatchProfit-a.flipBatchProfit);
+ const sized=profitable.filter(r=>r.flipUnits>0).sort((a,b)=>b.flipRank-a.flipRank||b.flipBatchProfit-a.flipBatchProfit);
  switch(id){
- case 'budget':return section(id,'Flips for Your GP',note('Capacity-capped potential profit for '+gp(budget)+'. Recent two-sided activity and price agreement required; fills not guaranteed.')+
-  (best.length?best.slice(0,limit).map(r=>itemCard(r)).join('')+note('Best-sized example: '+esc(best[0].name)+' · '+fmt(best[0].flipUnits)+' units · '+gp(best[0].flipBatchProfit)+' estimated net.') :empty('Enter a larger GP budget or wait for recent liquid opportunities.'))+
-  '<button class="pump-text-action" data-go="flips">Explore all flips →</button>',u);
  case 'top':{
   const choice=u.homeRank||'net';
-  const sorted=valid.slice().sort((a,b)=>choice==='roi'?b.flipRoi-a.flipRoi:choice==='volume'?b.flipDayLowVolume-a.flipDayLowVolume:b.flipRank-a.flipRank);
-  const tabs=[['net','Best Overall'],['roi','High ROI'],['volume','High Volume']].map(([k,n])=>'<button class="'+(choice===k?'active':'')+'" data-home-rank="'+k+'">'+n+'</button>').join('');
-  return section(id,'Top Flip Opportunities','<div class="pump-widget-tabs">'+tabs+'</div>'+(sorted.length?sorted.slice(0,limit).map(itemCard).join(''):empty('No liquid after-tax opportunities in this snapshot.'))+
-    '<button class="pump-text-action" data-home-load="1">Show more ↓</button>',u);
+  const ranked=[...profitable].sort((a,b)=>choice==='roi'?b.roi-a.roi:
+    choice==='volume'?(b.dayVol||0)-(a.dayVol||0):b.flipRank-a.flipRank);
+  const tabs=[['net','Best Overall'],['roi','Highest ROI'],['volume','24h Volume']].map(([k,l])=>
+    '<button class="'+(choice===k?'active':'')+'" data-home-rank="'+k+'">'+l+'</button>').join('');
+  return section(id,'◆ Top Flip Ideas','<div class="pump-widget-tabs">'+tabs+'</div>'+
+   (ranked.length?ranked.slice(0,count).map(itemCard).join(''):empty('No positive observed spreads yet. All items remain available in Flip Finder.'))+
+   '<button class="pump-text-action" data-go="flips">View every item →</button>',u);
  }
- case 'movers':{
-  const ups=rows.filter(r=>r.dayGapPct!==null&&r.dayGapPct>0).sort((a,b)=>b.dayGapPct-a.dayGapPct).slice(0,3);
-  const downs=rows.filter(r=>r.dayGapPct!==null&&r.dayGapPct<0).sort((a,b)=>a.dayGapPct-b.dayGapPct).slice(0,3);
-  const movers=(arr,sym)=>arr.map(x=>'<button class="pump-home-item" data-open="'+x.id+'">'+sym+' '+esc(x.name)+' <strong class="'+(x.dayGapPct>=0?'pump-up':'pump-down')+'">'+(x.dayGapPct>0?'+':'')+x.dayGapPct.toFixed(1)+'%</strong></button>').join('');
-  return section(id,'Market Movers',note('Hourly bucket-average price compared with the latest 24-hour bucket average, not a true 24h closing-price change.')+
-    '<div class="pump-home-two"><div><strong>Above average</strong>'+movers(ups,'↗')+'</div><div><strong>Below average</strong>'+movers(downs,'↘')+'</div></div>'+
-    '<button class="pump-text-action" data-go="markets">Browse market trends →</button>',u);
- }
+ case 'budget':return section(id,'◈ Flips for '+gp(budget),
+  note('Quantity scenario uses a share of both-sided completed-trade volume and your 4h GE limit. Not live available orders.')+
+  (sized.length?sized.slice(0,count).map(itemCard).join('')+
+    note('Top scenario: '+esc(sized[0].name)+' · '+n(sized[0].flipUnits)+' units · '+gp(sized[0].flipBatchProfit)+' potential, if filled.'):
+    empty('No two-sided volume and affordable quantity estimate yet. Browse all items and compare observed spreads instead.'))+
+  '<button class="pump-text-action" data-go="flips">See all margins →</button>',u);
  case 'watch':{
-  const watch=u.watchlist.map(id=>rows.find(x=>x.id===id)).filter(Boolean);
-  return section(id,'Watchlist Snapshot',(watch.length?watch.slice(0,limit).map(itemCard).join(''):empty('Star items in Markets to add them to your watchlist.'))+
-    '<button class="pump-text-action" data-go="watchlist">Watchlists & alerts →</button>',u);
+  const watch=(u.watchlist||[]).map(id=>rows.find(r=>r.id===id)).filter(Boolean);
+  return section(id,'☆ Your Watchlist',(watch.length?watch.slice(0,count).map(itemCard).join(''):
+   empty('Star a rune or item in the Flip Finder to monitor it here.'))+
+   '<button class="pump-text-action" data-go="watchlist">Open watchlist →</button>',u);
  }
  case 'portfolio':{
-  const m=journalMetrics(u.trades||[],Object.fromEntries(rows.map(x=>[x.id,x])));
-  return section(id,'Portfolio Performance','<div class="pump-overview">'+
-    [['Invested',gp(m.locked)],['Realized P/L',gp(m.realized)],['Unrealized estimate',gp(m.unrealized)],['Open positions',fmt(m.open)]]
-     .map(([a,b])=>'<div class="pump-metric"><small>'+a+'</small><strong>'+b+'</strong></div>').join('')+'</div>'+
-    '<button class="pump-text-action" data-go="portfolio">Open trade journal →</button>',u);
+  const m=journalMetrics(u.trades||[],Object.fromEntries(rows.map(r=>[r.id,r])));
+  const stats=[['GP invested',gp(m.locked)],['Realized profit',gp(m.realized)],
+   ['Unrealized estimate',gp(m.unrealized)],['Open flips',n(m.open)]];
+  return section(id,'▣ Portfolio','<div class="pump-overview">'+stats.map(([l,v])=>
+   '<div class="pump-metric"><small>'+l+'</small><strong>'+v+'</strong></div>').join('')+'</div>'+
+   '<button class="pump-text-action" data-go="portfolio">Open trade journal →</button>',u);
+ }
+ case 'movers':{
+  const up=rows.filter(r=>r.dayGapPct!==null&&r.dayGapPct>0).sort((a,b)=>b.dayGapPct-a.dayGapPct).slice(0,3);
+  const down=rows.filter(r=>r.dayGapPct!==null&&r.dayGapPct<0).sort((a,b)=>a.dayGapPct-b.dayGapPct).slice(0,3);
+  const table=(arr)=>arr.map(r=>'<button data-open="'+r.id+'" class="pump-home-item">'+esc(r.name)+
+    '<b class="'+(r.dayGapPct>0?'pump-up':'pump-down')+'">'+r.dayGapPct.toFixed(1)+'%</b></button>').join('');
+  return section(id,'↗ Market Movers',note('Hourly average compared with the 24h average; not a daily closing-price change.')+
+   '<div class="pump-home-two"><div><strong>Above average</strong>'+table(up)+'</div><div><strong>Below average</strong>'+table(down)+'</div></div>',u);
  }
  case 'calculator':{
-  const e=rows.find(x=>x.id===Number(u.homeCalcId))||best[0]||candidates[0];
-  const t=e?.flipRecommended?e:null;
-  return section(id,'Quick Flip Calculator','<div class="pump-home-controlrow"><label>Item <select id="pumpCalcItem">'+
-    (candidates.slice(0,150).map(r=>'<option value="'+r.id+'"'+(e&&e.id===r.id?' selected':'')+'>'+esc(r.name)+'</option>').join(''))+
-    '</select></label></div>'+(t?'<div class="pump-calculator-stats">'+[['Affordable',fmt(Math.floor(budget/t.flipBuy))],['4h limit',t.flipLimitKnown?fmt(t.limit):'Unknown'],
-    ['Capacity-capped qty',fmt(t.flipUnits)],['Estimated cost',gp(t.flipInvestment)],['GE sale tax / item',gp(t.flipTax)],['Estimated batch profit',gp(t.flipBatchProfit)]]
-    .map(([l,v])=>'<span>'+l+' <b>'+v+'</b></span>').join('')+'</div>'+note('Conservative quantity uses your budget and the known 4h buy limit. Actual order filling is not guaranteed.'):
-    empty('Select an item once market data loads.'))+
-    '<button class="pump-text-action" data-go="flips">Open full Flip Finder →</button>',u);
- }
- case 'methods':{
-  const alch=(ctx.alchRows||[]).slice(0,3);
-  const recipes=(ctx.recipes||[]).filter(x=>x.net>0&&x.olderTradeMinutes<=180).sort((a,b)=>b.net-a.net).slice(0,3);
-  return section(id,'Money-Making Highlights','<h4>High Alchemy</h4>'+ (alch.length?alch.map(x=>'<div class="pump-home-mini">'+esc(x.name)+' <strong class="pump-up">+'+gp(x.net)+'/alch</strong></div>').join(''):empty('Alchemy quotes unavailable.'))+
-    '<h4>Processing</h4>'+(recipes.length?recipes.map(x=>'<div class="pump-home-mini">'+esc(x.output)+' <strong class="pump-up">+'+gp(x.net)+'/action</strong></div>').join(''):empty('No fresh profitable processing method in the available quotes.'))+
-    '<button class="pump-text-action" data-go="money">Open Processing & Money Making →</button>',u);
- }
- case 'risks':{
-  const stale=rows.filter(x=>x.age>180).length;
-  const thin=rows.filter(x=>x.v1<20).length;
-  const alerts=(u.alerts||[]).filter(a=>a.triggered).length;
-  const risk=rows.filter(x=>x.net>0&&(x.age>180||x.v1<20||x.roi>.2)).slice(0,4);
-  return section(id,'Market Reliability','<div class="pump-calculator-stats">'+[['Stale trade pairs',fmt(stale)],
-   ['Thin 1h volume',fmt(thin)],['Triggered alerts',fmt(alerts)]].map(([l,v])=>'<span>'+l+' <b>'+v+'</b></span>').join('')+'</div>'+
-   note('These are heuristic flags, not market predictions. A wide apparent margin can be unfillable.')+
-   risk.map(x=>'<button class="pump-home-item" data-open="'+x.id+'">⚠ '+esc(x.name)+' <small>'+(x.age>180?'Stale quote':x.v1<20?'Low volume':'Unusually high ROI')+'</small></button>').join('')+
-   '<button class="pump-text-action" data-go="watchlist">Manage alerts →</button>',u);
+  const item=rows.find(r=>r.id===Number(u.homeCalcId))||sized[0]||profitable[0];
+  const options=profitable.slice(0,150).map(r=>'<option value="'+r.id+'"'+(item?.id===r.id?' selected':'')+'>'+esc(r.name)+'</option>').join('');
+  const values=item?[
+   ['Buy',gp(item.buy)],['Sell',gp(item.sell)],['Margin after tax',gp(item.net)],
+   ['ROI',Number.isFinite(item.roi)?(item.roi*100).toFixed(1)+'%':'—'],
+   ['Affordable units',n(Math.floor(budget/item.buy))],['Volume-capped units',n(item.flipUnits)],
+   ['Estimated batch profit',gp(item.flipBatchProfit)]
+  ].map(([l,v])=>'<span>'+l+'<b>'+v+'</b></span>').join(''):'';
+  return section(id,'⊞ Quick Trade Calculator','<div class="pump-home-controlrow"><label>Item<select id="pumpCalcItem">'+options+
+   '</select></label></div>'+(item?'<div class="pump-calculator-stats">'+values+'</div>':empty('No item quotes available.'))+
+   note('Past traded volume cannot guarantee the same number of future fills.'),u);
  }
  default:return '';
  }
 }
 export function home(ctx){
- const user=ctx.user,rows=ctx.rows||[];
- const order=normalizedOrder(user.homeWidgets);
- const hidden=Array.isArray(user.homeHidden)?user.homeHidden:[];
- const active=rows.filter(x=>x.v1>0).length,volume=rows.reduce((sum,x)=>sum+(x.dayVol||0),0);
- const summary='<div class="pump-hero"><small>OSRS PUMP · HARDCORE WORLDS</small><h2>Your trading <em>command center.</em></h2><p>Separate Hardcore Worlds economy · Live Wiki prices · After-tax estimates</p></div>'+
- '<div class="pump-ticker">◆ '+fmt(rows.length)+' price pairs · '+fmt(active)+' items with 1h activity · Hardcore-only completed trades ≠ guaranteed offers</div>'+
- '<div class="pump-overview">'+[['Priced items',fmt(rows.length)],['Active items (1h)',fmt(active)],['24h traded units',abr(volume)],['Watchlist',fmt(user.watchlist.length)]]
-  .map(([label,v])=>'<div class="pump-metric"><small>'+label+'</small><strong>'+v+'</strong></div>').join('')+'</div>'+
- '<div class="pump-shortcuts">'+[['flips','⚖','Flip Finder'],['markets','◆','Markets'],['portfolio','▣','Portfolio'],['money','⚒','Processing']]
-  .map(([id,ico,label])=>'<button data-go="'+id+'"><b>'+ico+'</b><small>'+label+'</small></button>').join('')+'</div>'+
- '<div class="pump-budget-row"><label for="pumpHomeBudget">Your trading capital (GP)</label><input inputmode="numeric" type="number" min="0" id="pumpHomeBudget" value="'+(Number(user.tradingGp)||0)+'"><button type="button" data-home-save-budget="1">Update</button></div>';
- const toggle= '<div class="pump-home-custombar"><strong>Your dashboard</strong><button type="button" data-home-customize="1">'+(user.homeCustomize?'Done':'Customize widgets')+'</button></div>';
- const edit=user.homeCustomize?'<div class="pump-home-editor">'+HOME_WIDGETS.map(w=>'<label><input type="checkbox" data-home-visibility="'+w.id+'"'+(!hidden.includes(w.id)?' checked':'')+'> '+w.icon+' '+esc(w.title)+'</label>').join('')+
- '<p class="pump-caption">Use ↑ and ↓ to rearrange sections. Hidden widgets remain available in this editor.</p></div>':'';
- const sections=order.filter(id=>!hidden.includes(id)).map(id=>renderWidget(id,ctx)).join('');
- return '<div class="pump-home">'+summary+toggle+edit+sections+'</div>';
+ const u=ctx.user,rows=ctx.rows||[],order=normalizedOrder(u.homeWidgets);
+ const hidden=Array.isArray(u.homeHidden)?u.homeHidden:[];
+ const active=rows.filter(r=>r.flipDayHighVolume>0&&r.flipDayLowVolume>0).length;
+ const total=rows.reduce((sum,r)=>sum+(r.dayVol||0),0);
+ const positive=rows.filter(r=>r.net>0).length;
+ const head='<div class="pump-hero"><small>OSRS PUMP · HARDCORE WORLDS</small><h2>Find your next <em>flip.</em></h2>'+
+ '<p>Actual Wiki transaction prices · No hidden minimum-profit cutoff</p></div>'+
+ '<div class="pump-overview">'+[['Priced items',n(rows.length)],['Positive net spreads',n(positive)],
+ ['Two-sided trades (24h)',n(active)],['24h traded units',small(total)]].map(([label,val])=>
+  '<div class="pump-metric"><small>'+label+'</small><strong>'+val+'</strong></div>').join('')+'</div>'+
+ '<div class="pump-shortcuts">'+[['flips','⌕','Find Flips'],['markets','◆','Markets'],
+  ['watchlist','☆','Watchlist'],['portfolio','▣','Portfolio']].map(([id,symbol,label])=>
+  '<button data-go="'+id+'"><b>'+symbol+'</b><small>'+label+'</small></button>').join('')+'</div>'+
+ '<div class="pump-budget-row"><label for="pumpHomeBudget">Your cash stack (GP)</label>'+
+ '<input type="number" min="0" inputmode="numeric" id="pumpHomeBudget" value="'+(Number(u.tradingGp)||0)+'">'+
+ '<button data-home-save-budget="1">Update</button></div>'+
+ '<div class="pump-home-custombar"><strong>Flipping dashboard</strong><button data-home-customize="1">'+(u.homeCustomize?'Done':'Customize')+'</button></div>';
+ const editor=u.homeCustomize?'<div class="pump-home-editor">'+HOME_WIDGETS.map(w=>
+  '<label><input type="checkbox" data-home-visibility="'+w.id+'"'+(!hidden.includes(w.id)?' checked':'')+'>'+esc(w.title)+'</label>').join('')+
+  '<p class="pump-caption">Move sections with ↑ and ↓ or hide extras.</p></div>':'';
+ return '<div class="pump-home">'+head+editor+order.filter(id=>!hidden.includes(id)).map(id=>renderWidget(id,ctx)).join('')+'</div>';
 }
 export function init(getCtx){
  if(window.__pumpHomeReady)return;window.__pumpHomeReady=true;
- const render=()=>{const ctx=getCtx();ctx.save();if(ctx.user.page==='dashboard')ctx.renderPage();else if(ctx.user.page==='money')ctx.renderPage();};
+ const render=()=>{const c=getCtx();c.save();if(c.user.page==='dashboard')c.renderPage();};
  document.addEventListener('click',e=>{
-  const element=e.target.closest('[data-home-customize],[data-home-move],[data-home-hide],[data-home-save-budget],[data-home-rank],[data-home-load],[data-method-category]');
-  if(!element)return;
+  const el=e.target.closest('[data-home-customize],[data-home-move],[data-home-hide],[data-home-save-budget],[data-home-rank],[data-home-load]');
+  if(!el)return;
   const ctx=getCtx(),u=ctx.user;
-  if(element.dataset.homeCustomize!==undefined)u.homeCustomize=!u.homeCustomize;
-  if(element.dataset.homeMove){
-   const [id,action]=element.dataset.homeMove.split(':'),order=normalizedOrder(u.homeWidgets),i=order.indexOf(id),j=i+(action==='up'?-1:1);
-   if(i>=0&&j>=0&&j<order.length){[order[i],order[j]]=[order[j],order[i]];u.homeWidgets=order;}
+  if(el.dataset.homeCustomize!==undefined)u.homeCustomize=!u.homeCustomize;
+  if(el.dataset.homeMove){const [id,move]=el.dataset.homeMove.split(':');const arr=normalizedOrder(u.homeWidgets),i=arr.indexOf(id),j=i+(move==='up'?-1:1);
+    if(i>=0&&j>=0&&j<arr.length){[arr[i],arr[j]]=[arr[j],arr[i]];u.homeWidgets=arr;}
   }
-  if(element.dataset.homeHide){u.homeHidden=[...new Set([...(u.homeHidden||[]),element.dataset.homeHide])];}
-  if(element.dataset.homeSaveBudget!==undefined){
-   const input=document.querySelector('#pumpHomeBudget'),n=Number(input?.value);
-   if(!Number.isFinite(n)||n<0){ctx.toast('Enter a nonnegative GP budget.');return;}
-   u.tradingGp=Math.floor(n);
+  if(el.dataset.homeHide)u.homeHidden=[...new Set([...(u.homeHidden||[]),el.dataset.homeHide])];
+  if(el.dataset.homeSaveBudget!==undefined){
+   const num=Number(document.querySelector('#pumpHomeBudget')?.value);
+   if(!Number.isFinite(num)||num<0){ctx.toast('Enter a valid GP amount.');return;}
+   u.tradingGp=Math.floor(num);
   }
-  if(element.dataset.methodCategory){u.processKind=element.dataset.methodCategory;u.processLimit=10;render();}
- if(element.dataset.homeRank)u.homeRank=element.dataset.homeRank;
-  if(element.dataset.homeLoad)u.homeLoad=Math.min(50,(u.homeLoad||5)+5);
+  if(el.dataset.homeRank)u.homeRank=el.dataset.homeRank;
+  if(el.dataset.homeLoad)u.homeLoad=Math.min(50,(u.homeLoad||5)+5);
   render();
  });
  document.addEventListener('change',e=>{
   const ctx=getCtx(),u=ctx.user;
   if(e.target.dataset.homeVisibility){
-   const id=e.target.dataset.homeVisibility;u.homeHidden=e.target.checked?(u.homeHidden||[]).filter(x=>x!==id):[...new Set([...(u.homeHidden||[]),id])];
+   const id=e.target.dataset.homeVisibility;
+   u.homeHidden=e.target.checked?(u.homeHidden||[]).filter(x=>x!==id):[...new Set([...(u.homeHidden||[]),id])];
    render();
   }
   if(e.target.id==='pumpCalcItem'){u.homeCalcId=Number(e.target.value);render();}
-  if(e.target.id==='pumpProcessKind'){u.processKind=e.target.value;u.processLimit=10;render();}
-  if(e.target.id==='pumpProcessSort'){u.processSort=e.target.value;render();}
-  if(e.target.id==='pumpProcessPositive'){u.processProfitable=!!e.target.checked;render();}
-  if(e.target.id==='pumpProcessMin'){u.processMinProfit=e.target.value===''?null:Math.max(0,Number(e.target.value));render();}
-  if(e.target.id==='pumpProcessRate'){
-   const n=Number(e.target.value);if(Number.isFinite(n)&&n>=1&&n<=15000){u.processRate=Math.floor(n);render();}
-  }
- });
- document.addEventListener('click',e=>{
-  if(!e.target.closest('[data-pump-method-more]'))return;
-  const ctx=getCtx();ctx.user.processLimit=(ctx.user.processLimit||10)+10;render();
  });
 }
