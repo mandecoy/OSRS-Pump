@@ -1,85 +1,60 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {assessFlip,assessMarket,readyFlip,recommended,rerankMarket,FLIP_POLICY} from '../flip-scanner.js';
-import {applyFilters,DEFAULT_FILTER,categoryRows} from '../v03.js';
-
-const now=1_800_000_000_000;
-const ts=Math.floor(now/1000);
-function healthy(overrides={}){
- const row={id:1,name:'Test armour',buy:1000,sell:1200,highTime:ts-40,lowTime:ts-70,limit:1000,age:1,net:176,roi:.176,
- v1:2000,dayVol:6000,...overrides};
- const H={avgHighPrice:1200,avgLowPrice:1000,highPriceVolume:1000,lowPriceVolume:1000};
- const F={avgHighPrice:1200,avgLowPrice:1000,highPriceVolume:25,lowPriceVolume:25};
- const D={avgHighPrice:1200,avgLowPrice:1000,highPriceVolume:3000,lowPriceVolume:3000};
- return {row,H,F,D};
-}
-function evaluated({row,H,F,D}=healthy(),budget=1000000){return readyFlip(assessFlip(row,H,F,D,now),budget);}
-test('conservative estimate has lower net than raw and is taxed',()=>{
- const x=evaluated();
- assert.equal(x.flipEligible,true);
- assert.equal(x.flipRecommended,true);
- assert.equal(x.flipBuy,1010);
- assert.equal(x.flipSell,1190);
- assert.equal(x.flipNet,157);
- assert.ok(x.flipRoi>.01&&x.flipRoi<.18);
- assert.equal(x.flipUnits,30);
- assert.equal(x.flipBatchProfit,4710);
- assert.ok(x.flipRank>0);
- assert.ok(x.executionScore>0&&x.executionScore<=100);
+import {assessFlip,assessMarket,readyFlip,rerankMarket,recommended} from '../flip-scanner.js';
+import {applyFilters,DEFAULT_FILTER,categoryRows,flips,markets,CATEGORIES} from '../v03.js';
+const now=1_800_000_000_000,t=Math.floor(now/1000);
+const sample=(changes={})=>({id:558,name:'Mind rune',buy:3,sell:5,net:2,roi:2/3,limit:13000,
+ highTime:t-60,lowTime:t-80,v1:1200,dayVol:28000,age:2,category:'Runes & teleports',
+ members:false,...changes});
+const hour={highPriceVolume:400,lowPriceVolume:600};
+const five={highPriceVolume:20,lowPriceVolume:30};
+const day={highPriceVolume:10000,lowPriceVolume:18000};
+const run=(row=sample(),d=day,budget=1000000)=>readyFlip(assessFlip(row,hour,five,d,now),budget);
+test('Mind rune 3-to-5 aftertax spread and volume-sized profitability shown',()=>{
+ const r=run();
+ assert.equal(r.flipBuy,3);assert.equal(r.flipSell,5);
+ assert.equal(r.flipTax,0);assert.equal(r.flipNet,2);
+ assert.equal(r.flipRoi,2/3);assert.equal(r.flipUnits,1000);
+ assert.equal(r.flipBatchProfit,2000);
+ assert.ok(r.flipRank>0);assert.equal(r.flipRecommended,true);
 });
-test('one-gp after-tax profit must not surface in recommended flips',()=>{
- const x=healthy({buy:1000,sell:1001,name:'Mind rune'});
- x.H.avgHighPrice=1001;x.F.avgHighPrice=1001;
- const out=evaluated(x);
- assert.equal(out.flipRecommended,false);
- assert.ok(out.flipReasons.includes('Trivial after-tax margin'));
+test('even a 1gp-per-item flip must remain visible',()=>{
+ const r=run(sample({buy:4,net:1,roi:.25}),{highPriceVolume:20,lowPriceVolume:20});
+ assert.equal(r.flipNet,1);assert.equal(r.flipUnits,2);
+ assert.equal(r.flipRecommended,true);
+ assert.equal(applyFilters([r],DEFAULT_FILTER).length,1);
+ assert.equal(categoryRows([r],'roi').length,1);
 });
-test('thin markets rejected even with apparently huge profitable price gap',()=>{
- const x=healthy();x.H.highPriceVolume=1;x.H.lowPriceVolume=0;x.D.highPriceVolume=12;x.D.lowPriceVolume=1;
- const out=evaluated(x);
- assert.equal(out.flipRecommended,false);
- assert.ok(out.flipReasons.includes('Insufficient two-sided 1h trades'));
- assert.ok(out.flipReasons.includes('Insufficient 24h trades'));
+test('quiet market and older quotes remain searchable, not hidden',()=>{
+ const r=run(sample({highTime:t-400000,lowTime:t-400000}),null);
+ assert.equal(r.flipUnits,0);assert.equal(r.flipGrade,'No 24h trades');
+ assert.equal(r.flipRecommended,false);
+ assert.equal(applyFilters([r],DEFAULT_FILTER).length,1);
+ assert.equal(applyFilters([r],{...DEFAULT_FILTER,search:'mind rune'}).length,1);
 });
-test('anomalous high spread rejected independently of net profit',()=>{
- const x=healthy({sell:4000});x.H.avgHighPrice=4000;x.F.avgHighPrice=4000;
- const out=evaluated(x);
- assert.equal(out.flipRecommended,false);
- assert.ok(out.flipReasons.includes('Unusual observed spread'));
+test('activity is an optional filter, not a default exclusion',()=>{
+ const live=run(),quiet=run(sample({id:999,name:'Quiet sword'}),null);
+ assert.equal(applyFilters([quiet,live],DEFAULT_FILTER).length,2);
+ assert.deepEqual(applyFilters([quiet,live],{...DEFAULT_FILTER,activity:'two-sided'}).map(r=>r.id),[558]);
 });
-test('quotes far apart or stale or missing paired averages not recommended',()=>{
- const stale=healthy({lowTime:ts-7200});const old=evaluated(stale);
- assert.equal(old.flipRecommended,false);
- assert.ok(old.flipReasons.includes('Stale quote'));
- const sep=healthy({lowTime:ts-3000});
- assert.ok(evaluated(sep).flipReasons.includes('Trades too far apart'));
- const data=healthy();delete data.H.avgLowPrice;
- assert.ok(evaluated(data).flipReasons.includes('Missing recent paired averages'));
+test('ranking rewards feasible GP profit and two-sided activity, without hard dollar gates',()=>{
+ const active=run(),quiet=run(sample({id:555,name:'One sale item',buy:100,sell:1000,net:882,roi:8.82}),{highPriceVolume:1,lowPriceVolume:1});
+ assert.ok(active.flipRank>quiet.flipRank);
+ assert.deepEqual(recommended([quiet,active]).map(r=>r.id),[558,555]);
 });
-test('minimum meaningful trade size protects against false tiny flips',()=>{
- const x=evaluated(healthy(),1000);assert.equal(x.flipRecommended,false);
- assert.ok(x.flipReasons.includes('Insufficient budget-sized profit'));
+test('re-ranking for a smaller budget changes sized profit, not raw margin',()=>{
+ const item=run();
+ const next=rerankMarket([item],3)[0];
+ assert.equal(next.flipNet,2);assert.equal(next.flipUnits,1);
+ assert.equal(next.flipBatchProfit,2);
 });
-test('default filter only surfaces recommended candidates, risk research opt-in',()=>{
- const good=evaluated(healthy());
- const bad=evaluated(healthy({highTime:ts-40000,lowTime:ts-40000}));
- assert.equal(applyFilters([good,bad],DEFAULT_FILTER).length,1);
- assert.equal(categoryRows([good,bad],'margins').length,1);
- assert.equal(applyFilters([good,bad],{...DEFAULT_FILTER,showRisky:true}).length,2);
+test('Hardcore data 1h,5m,24h is used and no regular world fallback',()=>{
+ const rows=assessMarket([sample()],{data:{558:hour}},{data:{558:five}},{data:{558:day}},1000000,now);
+ assert.equal(rows[0].flipDayHighVolume,10000);
+ assert.equal(rows[0].flipDayLowVolume,18000);
+ assert.equal(rows[0].flipHourHighVolume,400);
+ assert.equal(rows[0].flipFiveVolume,50);
 });
-test('ranked results prioritize feasible after-tax ROI and trade capacity',()=>{
- const good=evaluated(healthy());
- const smaller=healthy({id:2,sell:1160,net:128,roi:.128});
- smaller.H.avgHighPrice=1160;smaller.F.avgHighPrice=1160;
- const other=evaluated(smaller);
- const result=recommended([other,good]);
- assert.equal(result[0].id,good.id);
- assert.ok(result[0].flipRoi>result[1].flipRoi);
-});
-test('budget re-ranking reduces plausible profit and does not keep stale scores',()=>{
- const g=evaluated(healthy());
- const reranked=rerankMarket([g],500);
- assert.equal(reranked[0].flipRecommended,false);
- assert.equal(reranked[0].flipBatchProfit,0);
- assert.ok(FLIP_POLICY.minNetPerItemGp>=5);
+test('Money Making and Alchemy categories are removed',()=>{
+ assert.equal(CATEGORIES.some(c=>c.group==='Money Making'||c.id==='alch'||c.id==='processing'),false);
 });
