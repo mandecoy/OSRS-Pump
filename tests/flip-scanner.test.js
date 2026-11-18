@@ -27,8 +27,8 @@ test('even a 1gp-per-item flip must remain visible',()=>{
 });
 test('quiet market and older quotes remain searchable, not hidden',()=>{
  const r=run(sample({highTime:t-400000,lowTime:t-400000}),null);
- assert.equal(r.flipUnits,0);assert.equal(r.flipGrade,'No 24h trades');
- assert.equal(r.flipRecommended,false);
+ assert.equal(r.flipUnits,100);assert.equal(r.flipGrade,'No 24h trades');
+ assert.equal(r.flipRecommended,true); // hourly two-sided trades can still support sizing
  assert.equal(applyFilters([r],DEFAULT_FILTER).length,1);
  assert.equal(applyFilters([r],{...DEFAULT_FILTER,search:'mind rune'}).length,1);
 });
