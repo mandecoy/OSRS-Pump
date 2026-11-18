@@ -88,9 +88,6 @@ export function filterMarket(rows,f) {
     (f.budget==null||r.buy<=f.budget)
   ).sort((a,b)=>(b[f.sort||'net']??0)-(a[f.sort||'net']??0));
 }
-export function highAlchProfit(item,natureRuneBuy){
-  return (Number(item.highalch)||0)-(Number(item.buy)||0)-(Number(natureRuneBuy)||0);
-}
 export function journalMetrics(trades,itemsById={}){
   let spent=0,proceeds=0,realized=0,locked=0,open=0;
   for(const t of trades){

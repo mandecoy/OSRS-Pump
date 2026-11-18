@@ -1,4 +1,4 @@
-import {gp,compact,pct,flip,geTax,mapMarket,filterMarket,analyzeHistory,journalMetrics,highAlchProfit,volumeOf} from './logic.js';
+import {gp,compact,pct,flip,geTax,mapMarket,filterMarket,analyzeHistory,journalMetrics,volumeOf} from './logic.js';
 import * as V03 from './v03.js';
 import {historical24h} from './logic.js';
 import {sizingCard,watchCard,alertValue,alertDisplay,ALERT_METRICS} from './market-intel.js';
