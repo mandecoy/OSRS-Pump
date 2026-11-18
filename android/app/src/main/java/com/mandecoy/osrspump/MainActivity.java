@@ -116,7 +116,6 @@ public final class MainActivity extends Activity {
             case "index.html": mime = "text/html"; break;
             case "flip-scanner.js":
             case "dashboard.js":
-            case "processing.js":
             case "market-intel.js":
             case "history-chart.js":
             case "v03.js":

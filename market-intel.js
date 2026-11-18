@@ -1,5 +1,5 @@
 /* UI components for tax-aware trade sizing and transparent market signals. */
-import {tradeSize,riskSignals} from './logic.js';
+import {riskSignals} from './logic.js';
 const escapeHtml=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const gp=n=>Number.isFinite(Number(n))?Math.round(Number(n)).toLocaleString('en-US')+' gp':'—';
 const units=n=>Number.isFinite(Number(n))?Math.round(Number(n)).toLocaleString('en-US'):'—';
@@ -16,27 +16,24 @@ export function riskBadge(row){
    (s.flags.length?'⚠ '+escapeHtml(s.flags.join(' · ')):'✓ No major flags')+'</span>';
 }
 export function sizingCard(row,budget){
- const t=row.flipModel?row:null;
- if(!t||!row.flipRecommended)return '<div class="card"><strong>Research only — not a recommended flip</strong><p class="smallnote">'+escapeHtml((row.flipReasons||['Insufficient recent two-sided trades']).join(' · '))+'</p>Raw high/low observations are not executable orders.</div>';
- return '<div class="card" style="margin-top:16px"><div class="section-heading"><h3>Trade-size calculator</h3><span class="tag">4-hour GE cycle</span></div>'+
- '<form id="sizerForm" class="form-inline"><div class="field"><label for="sizerAvailable">GP available</label>'+
- '<input id="sizerAvailable" type="number" name="available" inputmode="numeric" step="1" min="0" value="'+escapeHtml(Math.floor(Number(budget)||0))+'"></div>'+
+ const cash=Math.max(0,Number(budget)||0),buy=Number(row.buy),sell=Number(row.sell);
+ const tax=Number(row.flipTax)||0,qty=Number(row.flipUnits)||0;
+ const limit=Number(row.limit)>0?Math.floor(Number(row.limit)):null;
+ return '<div class="card" style="margin-top:16px"><div class="section-heading"><h3>Flip size & volume</h3><span class="tag">Hardcore GE</span></div>'+
+ '<form id="sizerForm" class="form-inline"><div class="field"><label for="sizerAvailable">Your GP budget</label>'+
+ '<input id="sizerAvailable" type="number" name="available" min="0" inputmode="numeric" value="'+Math.floor(cash)+'"></div>'+
  '<button type="submit" class="action">Calculate</button></form>'+
- '<div class="pump-sizer" style="margin-top:13px">'+
- tile('Units affordable',units(Math.floor((Number(budget)||0)/row.flipBuy)))+
- tile('4h GE buy limit',t.flipLimitKnown?units(t.limit):'Not listed')+
- tile('Units to flip',units(t.flipUnits))+
- tile('Total purchase',gp(t.flipInvestment))+
- tile('GE sale tax / item',gp(t.flipTax))+
- tile('Est. total profit after tax',gp(t.flipBatchProfit))+
- '</div><p class="smallnote" style="margin-top:12px">Assumes each unit buys at '+gp(t.flipBuy)+' and sells at '+gp(t.flipSell)+
- '. Actual fills, volume, existing purchases in this four-hour window and price movement can reduce the quantity or profit.'+
- (t.limitKnown?' The GE limit is an item-wide 4h buy cap; enter how many you have already bought separately when planning additional buys.':' No verified 4h limit was listed, so the quantity shown is budget-only.')+
- '</p><div style="margin-top:8px">'+riskBadge(row)+'</div></div>';
+ '<div class="pump-sizer">'+
+ tile('Observed low (buy target)',gp(buy))+tile('Observed high (sell target)',gp(sell))+
+ tile('After-tax margin / item',gp(sell-buy-tax))+tile('24h high-side units',units(row.flipDayHighVolume))+
+ tile('24h low-side units',units(row.flipDayLowVolume))+tile('4h GE buy limit',limit===null?'Not listed':units(limit))+
+ tile('Budget affordable',buy>0?units(Math.floor(cash/buy)):'—')+
+ tile('Volume-capped units',units(qty))+tile('Potential batch profit',qty>0?gp(row.flipBatchProfit):'No two-sided volume estimate')+
+ '</div><p class="smallnote">These are completed trades, not standing GE offers. The quantity scenario is capped by GP, buy limits when known, and a small fraction of two-sided traded volume. A valid observed spread can exist even if volume is too low to estimate a fillable batch. Check offers before trading.</p></div>';
 }
 export function watchCard(row,history,budget){
  const s=history?.summary,loading=!history,hasPrice=Number(row.buy)>0&&Number(row.sell)>0;
- const t=row.flipRecommended?row:null;
+ const t=row.flipModel?row:null;
  const img=row.icon?'https://oldschool.runescape.wiki/images/'+encodeURIComponent(row.icon.replace(/ /g,'_')):null;
  const historic=v=>v==null?(loading?'Loading…':'—'):gp(v);
  const change=s?.changePct!=null?pc(s.changePct):(loading?'Loading…':'—');
@@ -50,10 +47,10 @@ export function watchCard(row,history,budget){
  tile('24h high (5m avg)',historic(s?.high))+
  tile('24h change (sample midpoint)',change)+
  tile('24h trade volume',row.dayVol==null?'—':units(row.dayVol))+
- tile('Screened margin / item',t?gp(t.flipNet):'Research only')+
- tile('Capacity-capped profit',t?gp(t.flipBatchProfit):'Not feasible')+
+ tile('Net margin / item',hasPrice?gp(row.net):'—')+
+ tile('Volume-capped scenario',t&&t.flipUnits>0?gp(t.flipBatchProfit):'No sizing estimate')+
  '</div>'+riskBadge(hasPrice?row:null)+
- '<p class="smallnote" style="margin-top:8px">24h highs/lows are the extremes of available 5-minute averaged trades, not actual tick highs/lows. Feasibility depends on two-sided volume, quote consistency and conservative trade capacity.</p></div>';
+ '<p class="smallnote" style="margin-top:8px">24h highs/lows are the extremes of available 5-minute averaged trades, not actual tick highs/lows. Sizing is based on recently completed two-sided volume when available. Every observed spread remains visible.</p></div>';
 }
 export function alertValue(alert,row,history){
  if(!row)return null;
